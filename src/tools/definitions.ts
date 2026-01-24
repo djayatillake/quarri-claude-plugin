@@ -961,6 +961,16 @@ Returns SQL, data, statistics, optional chart config, and insights.`,
 
   // ==================== SESSION TOOLS (new for MCP) ====================
   {
+    name: 'quarri_auth_status',
+    description: 'Check authentication status - useful for debugging connection issues',
+    category: 'session',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'quarri_list_databases',
     description: 'List all databases the authenticated user has access to',
     category: 'session',

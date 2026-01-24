@@ -4,6 +4,8 @@
  */
 
 const DEFAULT_API_URL = 'https://app.quarri.ai';
+const DEFAULT_TIMEOUT = 60000; // 60 seconds for most operations
+const LONG_TIMEOUT = 180000; // 3 minutes for analysis pipelines
 
 interface ApiResponse<T = unknown> {
   success: boolean;
@@ -50,13 +52,14 @@ export class QuarriApiClient {
   }
 
   /**
-   * Make an HTTP request to the API
+   * Make an HTTP request to the API with timeout support
    */
   private async request<T>(
     method: string,
     path: string,
     body?: unknown,
-    useAuth = true
+    useAuth = true,
+    timeout = DEFAULT_TIMEOUT
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
@@ -67,12 +70,19 @@ export class QuarriApiClient {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    // Create abort controller for timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
+
     try {
       const response = await fetch(url, {
         method,
         headers,
         body: body ? JSON.stringify(body) : undefined,
+        signal: controller.signal,
       });
+
+      clearTimeout(timeoutId);
 
       const data = await response.json() as T & { error?: string };
 
@@ -85,6 +95,12 @@ export class QuarriApiClient {
 
       return { success: true, data: data as T };
     } catch (error) {
+      clearTimeout(timeoutId);
+
+      if (error instanceof Error && error.name === 'AbortError') {
+        return { success: false, error: `Request timeout after ${timeout / 1000}s` };
+      }
+
       const message = error instanceof Error ? error.message : 'Unknown error';
       return { success: false, error: message };
     }

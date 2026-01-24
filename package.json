@@ -5,12 +5,18 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "quarri-mcp": "./dist/index.js"
+    "quarri-mcp": "./dist/index.js",
+    "quarri-auth": "./dist/auth-cli.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node dist/index.js",
+    "auth": "node dist/auth-cli.js",
+    "auth:status": "node dist/auth-cli.js status",
+    "auth:request": "node dist/auth-cli.js request",
+    "auth:verify": "node dist/auth-cli.js verify",
+    "test:mcp": "./test-mcp.sh",
     "lint": "eslint src --ext .ts",
     "test": "vitest",
     "prepublishOnly": "npm run build"
