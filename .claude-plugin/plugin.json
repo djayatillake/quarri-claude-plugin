@@ -15,5 +15,16 @@
       "args": ["${pluginDir}/dist/index.js"]
     }
   },
-  "skills": ["quarri-guide"]
+  "skills": [
+    "quarri-guide",
+    "quarri-query",
+    "quarri-analyze",
+    "quarri-stats",
+    "quarri-chart",
+    "quarri-explain",
+    "quarri-insights",
+    "quarri-extract",
+    "quarri-metric",
+    "quarri-debug-connector"
+  ]
 }

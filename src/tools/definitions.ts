@@ -23,21 +23,10 @@ export interface ToolDefinition {
 }
 
 // Map MCP tool names to backend tool names
+// Note: Agent tools have been removed - they are now handled by Claude Code skills
+// See /quarri-query, /quarri-analyze, /quarri-stats, etc.
 export const TOOL_NAME_MAP: Record<string, string> = {
-  // Sub-agents
-  quarri_query_agent: 'query_agent',
-  quarri_explain_agent: 'explain_agent',
-  quarri_chart_agent: 'chart_agent',
-  quarri_metric_builder_agent: 'metric_builder_agent',
-  quarri_planning_agent: 'planning_agent',
-  quarri_insight_agent: 'insight_agent',
-  quarri_stats_agent: 'stats_agent',
-  quarri_staging_agent: 'staging_agent',
-  quarri_modeling_agent: 'modeling_agent',
-  quarri_transformers_agent: 'transformers_agent',
-  quarri_extraction_agent: 'extraction_agent',
-  quarri_query_with_analysis: 'query_with_analysis',
-  // Data
+  // Data tools (primitives)
   quarri_execute_sql: 'execute_sql',
   quarri_get_schema: 'get_schema',
   quarri_search_values: 'search_values',
@@ -77,289 +66,27 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_read_server_logs: 'read_server_logs',
   quarri_query_repl_activity: 'query_repl_activity',
   quarri_read_fly_logs: 'read_fly_logs',
+  // Connector management (new for skills-first architecture)
+  quarri_log_analysis_run: 'log_analysis_run',
+  quarri_schedule_extraction: 'schedule_extraction',
+  quarri_store_generated_code: 'store_generated_code',
+  quarri_get_connector_code: 'get_connector_code',
+  quarri_get_connector_logs: 'get_connector_logs',
+  quarri_update_connector_code: 'update_connector_code',
 };
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
-  // ==================== SUB-AGENT TOOLS ====================
-  {
-    name: 'quarri_query_agent',
-    description:
-      'Generate SQL from natural language questions. Use this when the user asks data questions.',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        question: {
-          type: 'string',
-          description: 'The natural language question to convert to SQL',
-        },
-        conversation_id: {
-          type: 'integer',
-          description: 'Optional conversation ID for multi-turn context',
-        },
-      },
-      required: ['question'],
-    },
-  },
-  {
-    name: 'quarri_explain_agent',
-    description: 'Explain SQL queries or query results in plain language',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        question: {
-          type: 'string',
-          description: 'The original question that was asked',
-        },
-        generated_sql: {
-          type: 'string',
-          description: 'The SQL query to explain',
-        },
-        error_message: {
-          type: 'string',
-          description: 'Error message if the query failed',
-        },
-      },
-      required: ['question'],
-    },
-  },
-  {
-    name: 'quarri_chart_agent',
-    description:
-      'Generate chart configuration from query results. Returns Plotly chart spec.',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        columns: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Column names from query results',
-        },
-        rows: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Data rows from query results',
-        },
-        question: {
-          type: 'string',
-          description: 'The original question for context',
-        },
-        sql_query: {
-          type: 'string',
-          description: 'The SQL query that produced the data',
-        },
-      },
-      required: ['columns', 'rows'],
-    },
-  },
-  {
-    name: 'quarri_metric_builder_agent',
-    description:
-      'Help define new metrics through a 3-step conversational process',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        message: {
-          type: 'string',
-          description: 'User message about metrics they want to define',
-        },
-        conversation_id: {
-          type: 'integer',
-          description: 'Conversation ID for multi-turn metric building',
-        },
-      },
-      required: ['message'],
-    },
-  },
-  {
-    name: 'quarri_planning_agent',
-    description:
-      'Create detailed analysis plans for complex questions. Use for multi-step analysis.',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        analysis_request: {
-          type: 'string',
-          description: 'The analysis question or request',
-        },
-        mode: {
-          type: 'string',
-          enum: ['create', 'revise'],
-          description: 'Whether to create new plan or revise existing',
-        },
-        existing_plan: {
-          type: 'string',
-          description: 'Existing plan to revise (for revise mode)',
-        },
-        feedback: {
-          type: 'string',
-          description: 'User feedback for plan revision',
-        },
-      },
-      required: ['analysis_request'],
-    },
-  },
-  {
-    name: 'quarri_query_with_analysis',
-    description: `Run a complete analysis pipeline for a question:
-1. Query Agent - generates SQL from the question
-2. Execute SQL - runs the query and gets results
-3. Stats Agent - performs statistical analysis, decides if chart is needed
-4. Chart Agent - generates visualization (if recommended)
-5. Insight Agent - generates key findings and recommendations
-
-Use this tool for data questions that would benefit from full analysis.
-Returns SQL, data, statistics, optional chart config, and insights.`,
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        question: {
-          type: 'string',
-          description: 'The data question to analyze',
-        },
-        include_chart: {
-          type: 'boolean',
-          description:
-            'Whether to generate a chart (default: let stats agent decide)',
-        },
-      },
-      required: ['question'],
-    },
-  },
-  {
-    name: 'quarri_insight_agent',
-    description: 'Generate actionable insights from statistical analysis results',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        question: {
-          type: 'string',
-          description: 'The analysis question',
-        },
-        statistical_results: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Results from stats_agent analysis',
-        },
-        sql_query: {
-          type: 'string',
-          description: 'The query that produced the data',
-        },
-      },
-      required: ['question', 'statistical_results'],
-    },
-  },
-  {
-    name: 'quarri_stats_agent',
-    description: 'Perform intelligent statistical analysis on query results',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        question: {
-          type: 'string',
-          description: 'The analysis question',
-        },
-        data: {
-          type: 'array',
-          items: { type: 'object' },
-          description: 'Data rows to analyze',
-        },
-        columns: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'Column names',
-        },
-      },
-      required: ['question', 'data', 'columns'],
-    },
-  },
-  {
-    name: 'quarri_staging_agent',
-    description:
-      'Propose staging transformations for raw tables (deduplication, PII handling, type casting)',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        table_name: {
-          type: 'string',
-          description: 'Source table name to stage',
-        },
-        schema_name: {
-          type: 'string',
-          description: 'Schema containing the table',
-        },
-      },
-      required: ['table_name'],
-    },
-  },
-  {
-    name: 'quarri_modeling_agent',
-    description:
-      'Plan silver layer data models (fact/dimension classification, relationships)',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        staging_tables: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of staging table names to model',
-        },
-      },
-      required: ['staging_tables'],
-    },
-  },
-  {
-    name: 'quarri_transformers_agent',
-    description:
-      'Generate SQL CREATE VIEW statements for dimensional model from a model plan',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        model_plan: {
-          type: 'object',
-          description:
-            'Model plan from modeling_agent with facts, dimensions, relationships',
-        },
-      },
-      required: ['model_plan'],
-    },
-  },
-  {
-    name: 'quarri_extraction_agent',
-    description: 'Generate dlt pipeline code for data extraction from APIs',
-    category: 'sub_agent',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        source_name: {
-          type: 'string',
-          description: 'Data source name (e.g., "stripe", "hubspot")',
-        },
-        source_category: {
-          type: 'string',
-          description: 'Source category (e.g., "payments", "crm", "custom")',
-        },
-        selected_resources: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of tables/endpoints to extract',
-        },
-      },
-      required: ['source_name'],
-    },
-  },
-
   // ==================== DATA TOOLS ====================
+  // Note: Agent tools have been removed and are now handled by Claude Code skills:
+  // - /quarri-query (replaces quarri_query_agent)
+  // - /quarri-analyze (replaces quarri_query_with_analysis, quarri_planning_agent)
+  // - /quarri-stats (replaces quarri_stats_agent)
+  // - /quarri-chart (replaces quarri_chart_agent)
+  // - /quarri-explain (replaces quarri_explain_agent)
+  // - /quarri-insights (replaces quarri_insight_agent)
+  // - /quarri-extract (replaces quarri_extraction_agent)
+  // - /quarri-metric (replaces quarri_metric_builder_agent)
+  // - /quarri-debug-connector (new skill for connector healing)
   {
     name: 'quarri_execute_sql',
     description: 'Execute a SQL query against the database. Returns results as JSON.',
@@ -993,6 +720,164 @@ Returns SQL, data, statistics, optional chart config, and insights.`,
         },
       },
       required: ['database_name'],
+    },
+  },
+
+  // ==================== CONNECTOR MANAGEMENT TOOLS ====================
+  // These support the skills-first architecture for /quarri-debug-connector and /quarri-extract
+  {
+    name: 'quarri_log_analysis_run',
+    description: 'Store a completed analysis run for history and auditing',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description: 'The analysis question that was asked',
+        },
+        sql_query: {
+          type: 'string',
+          description: 'The SQL query that was executed',
+        },
+        result_summary: {
+          type: 'string',
+          description: 'Summary of the analysis results',
+        },
+        row_count: {
+          type: 'integer',
+          description: 'Number of rows returned',
+        },
+        insights: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Key insights generated',
+        },
+      },
+      required: ['question', 'sql_query'],
+    },
+  },
+  {
+    name: 'quarri_schedule_extraction',
+    description: 'Schedule a Python extraction job to run on Quarri infrastructure',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_name: {
+          type: 'string',
+          description: 'Name of the data source (e.g., "stripe", "hubspot")',
+        },
+        pipeline_code: {
+          type: 'string',
+          description: 'The validated dlt pipeline Python code',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Cron expression for scheduling (e.g., "0 2 * * *" for daily at 2 AM)',
+        },
+        resources: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of resources/tables to extract',
+        },
+      },
+      required: ['source_name', 'pipeline_code', 'schedule'],
+    },
+  },
+  {
+    name: 'quarri_store_generated_code',
+    description: 'Save validated Python code for a connector or extraction pipeline',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connector_id: {
+          type: 'string',
+          description: 'ID of the connector to update',
+        },
+        code: {
+          type: 'string',
+          description: 'The Python code to store',
+        },
+        code_type: {
+          type: 'string',
+          enum: ['extraction', 'transformation', 'connector'],
+          description: 'Type of code being stored',
+        },
+        change_summary: {
+          type: 'string',
+          description: 'Summary of changes made to the code',
+        },
+      },
+      required: ['connector_id', 'code', 'code_type'],
+    },
+  },
+  {
+    name: 'quarri_get_connector_code',
+    description: 'Retrieve the Python source code for a connector (for debugging/healing)',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connector_id: {
+          type: 'string',
+          description: 'ID of the connector',
+        },
+      },
+      required: ['connector_id'],
+    },
+  },
+  {
+    name: 'quarri_get_connector_logs',
+    description: 'Get execution logs and errors for a connector',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connector_id: {
+          type: 'string',
+          description: 'ID of the connector',
+        },
+        lines: {
+          type: 'integer',
+          description: 'Number of log lines to retrieve',
+          default: 100,
+        },
+        include_successful: {
+          type: 'boolean',
+          description: 'Include logs from successful runs (default: false, only show errors)',
+          default: false,
+        },
+      },
+      required: ['connector_id'],
+    },
+  },
+  {
+    name: 'quarri_update_connector_code',
+    description: 'Submit healed/updated code for a connector after local testing',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connector_id: {
+          type: 'string',
+          description: 'ID of the connector to update',
+        },
+        pipeline_code: {
+          type: 'string',
+          description: 'The healed Python pipeline code',
+        },
+        change_summary: {
+          type: 'string',
+          description: 'Description of fixes applied',
+        },
+        test_results: {
+          type: 'object',
+          description: 'Results from local testing (row counts, validation results)',
+        },
+      },
+      required: ['connector_id', 'pipeline_code', 'change_summary'],
     },
   },
 ];
