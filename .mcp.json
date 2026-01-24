@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "quarri": {
+      "command": "node",
+      "args": ["dist/index.js"],
+      "env": {
+        "QUARRI_API_URL": "https://app.quarri.ai"
+      }
+    }
+  }
+}

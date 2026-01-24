@@ -1,0 +1,19 @@
+{
+  "name": "quarri",
+  "displayName": "Quarri Data Assistant",
+  "version": "1.0.0",
+  "description": "Natural language data analysis with Quarri. Query databases, create visualizations, and get insights using plain English.",
+  "publisher": "quarri",
+  "repository": "https://github.com/quarri-ai/quarri-claude-plugin",
+  "homepage": "https://quarri.ai",
+  "icon": "https://quarri.ai/logo.png",
+  "categories": ["Data & Analytics", "Developer Tools"],
+  "keywords": ["sql", "data", "analytics", "visualization", "database"],
+  "mcpServers": {
+    "quarri": {
+      "command": "node",
+      "args": ["${pluginDir}/dist/index.js"]
+    }
+  },
+  "skills": ["quarri-guide"]
+}
