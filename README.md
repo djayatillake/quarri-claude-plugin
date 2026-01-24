@@ -13,7 +13,7 @@ claude /install quarri
 ### Manual Installation
 
 ```bash
-npm install -g @anthropic/quarri
+npm install -g @quarri/claude-data-tools
 ```
 
 Then add to your Claude Code configuration:
@@ -160,6 +160,6 @@ MIT
 
 ## Support
 
-- GitHub Issues: https://github.com/quarri-ai/quarri-claude-plugin/issues
+- GitHub Issues: https://github.com/djayatillake/quarri-claude-plugin/issues
 - Documentation: https://docs.quarri.ai
 - Email: support@quarri.ai
