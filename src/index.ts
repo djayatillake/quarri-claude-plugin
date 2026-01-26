@@ -66,23 +66,13 @@ function getAuthInstructions(): string {
   return `
 Not authenticated with Quarri.
 
-To authenticate, run this in your terminal:
+**New to Quarri?** Create a free trial account:
+
+  npx @quarri/claude-data-tools signup
+
+**Existing account?** Log in with:
 
   npx @quarri/claude-data-tools auth
-
-Or manually via API:
-
-  # Request a verification code:
-  curl -X POST https://app.quarri.ai/api/auth/cli/request-code \\
-    -H "Content-Type: application/json" \\
-    -d '{"email": "your@email.com"}'
-
-  # Then verify with the code you receive:
-  curl -X POST https://app.quarri.ai/api/auth/cli/verify-code \\
-    -H "Content-Type: application/json" \\
-    -d '{"email": "your@email.com", "code": "123456"}'
-
-  # Save the token to ~/.quarri/credentials
 
 After authenticating, restart Claude Code to pick up the credentials.
 `.trim();
@@ -200,6 +190,61 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           text: JSON.stringify({
             success: true,
             message: `Selected database: ${databaseName}`,
+          }, null, 2),
+        },
+      ],
+    };
+  }
+
+  // Handle trial status
+  if (name === 'quarri_trial_status') {
+    const result = await client.getTrialStatus();
+
+    if (!result.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              error: result.error || 'Failed to get trial status',
+            }, null, 2),
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const data = result.data;
+    if (!data || !data.is_trial) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              is_trial: false,
+              message: 'This is not a trial account.',
+              database: data?.display_name || data?.database_name,
+            }, null, 2),
+          },
+        ],
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            is_trial: true,
+            organization: data.display_name,
+            days_remaining: data.days_remaining,
+            expires_at: data.expires_at,
+            data_limit_gb: data.data_limit_gb,
+            signup_type: data.signup_type,
+            upgrade_contact: data.upgrade_contact,
+            message: data.days_remaining && data.days_remaining <= 2
+              ? `⚠️ Your trial expires in ${data.days_remaining} day(s). Contact ${data.upgrade_contact} to upgrade.`
+              : `Trial active with ${data.days_remaining} days remaining.`,
           }, null, 2),
         },
       ],

@@ -28,6 +28,26 @@ interface AuthResponse {
     display_name: string;
     access_level: string;
   }>;
+  trial_info?: {
+    is_trial: boolean;
+    expires_at: string;
+    days_remaining: number;
+    max_data_gb: number;
+    upgrade_contact: string;
+  };
+}
+
+interface TrialStatusResponse {
+  is_trial: boolean;
+  database_name?: string;
+  display_name?: string;
+  days_remaining?: number;
+  expires_at?: string;
+  data_limit_bytes?: number;
+  data_limit_gb?: number;
+  signup_type?: string;
+  upgrade_contact?: string;
+  message?: string;
 }
 
 interface ToolResult {
@@ -202,6 +222,63 @@ export class QuarriApiClient {
       user: data.user,
       databases: data.databases,
     };
+  }
+
+  // ==================== Self-Service Signup Methods ====================
+
+  /**
+   * Initiate signup for a new organization
+   */
+  async initiateSignup(
+    email: string,
+    orgName: string,
+    includeDemoData: boolean
+  ): Promise<AuthResponse> {
+    const result = await this.request<AuthResponse>(
+      'POST',
+      '/api/auth/cli/initiate-signup',
+      { email, org_name: orgName, include_demo_data: includeDemoData },
+      false
+    );
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return { success: true, ...result.data };
+  }
+
+  /**
+   * Complete signup by verifying the code
+   */
+  async completeSignup(email: string, code: string): Promise<AuthResponse> {
+    const result = await this.request<AuthResponse>(
+      'POST',
+      '/api/auth/cli/complete-signup',
+      { email, code },
+      false
+    );
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    const data = result.data as AuthResponse;
+    return {
+      success: true,
+      token: data.token,
+      expiresAt: data.expiresAt,
+      user: data.user,
+      databases: data.databases,
+      trial_info: data.trial_info,
+    };
+  }
+
+  /**
+   * Get trial status for the authenticated user
+   */
+  async getTrialStatus(): Promise<ApiResponse<TrialStatusResponse>> {
+    return this.request<TrialStatusResponse>('GET', '/api/auth/cli/trial-status');
   }
 
   // ==================== Tool Methods ====================

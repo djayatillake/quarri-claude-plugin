@@ -26,6 +26,8 @@ export interface ToolDefinition {
 // Note: Agent tools have been removed - they are now handled by Claude Code skills
 // See /quarri-query, /quarri-analyze, /quarri-stats, etc.
 export const TOOL_NAME_MAP: Record<string, string> = {
+  // Session tools
+  quarri_trial_status: 'trial_status',
   // Data tools (primitives)
   quarri_execute_sql: 'execute_sql',
   quarri_get_schema: 'get_schema',
@@ -690,6 +692,17 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_auth_status',
     description: 'Check authentication status - useful for debugging connection issues',
+    category: 'session',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_trial_status',
+    description:
+      'Check trial status, data usage, and upgrade information. Shows days remaining, data limits, and contact for upgrading to a full account.',
     category: 'session',
     inputSchema: {
       type: 'object',

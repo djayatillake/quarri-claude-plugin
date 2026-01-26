@@ -171,6 +171,119 @@ async function requestCode(email: string): Promise<void> {
   console.log(`\nThen run: quarri-auth verify ${email} <code>`);
 }
 
+async function signup(): Promise<void> {
+  const rl = createReadline();
+
+  try {
+    console.log('\n🚀 Create a Quarri Organization\n');
+    console.log('Start a 7-day free trial with up to 1GB of data.\n');
+
+    const email = await prompt(rl, 'Email: ');
+    if (!email || !email.includes('@')) {
+      console.error('Invalid email address');
+      rl.close();
+      process.exit(1);
+    }
+
+    const orgName = await prompt(rl, 'Organization name: ');
+    if (!orgName || orgName.length < 2) {
+      console.error('Organization name must be at least 2 characters');
+      rl.close();
+      process.exit(1);
+    }
+
+    // Explain the two paths clearly
+    console.log('\nChoose your setup:\n');
+    console.log('  1. Superstore Demo (Recommended for trying Quarri)');
+    console.log('     A ready-to-use retail analytics dataset with:');
+    console.log('     - 51,000+ orders across global markets');
+    console.log('     - Sales, profit, shipping, and customer data');
+    console.log('     - Pre-configured for immediate querying');
+    console.log('');
+    console.log('  2. Custom Setup (For your own data)');
+    console.log('     An empty database where you can:');
+    console.log('     - Connect your own data sources');
+    console.log('     - Upload CSVs');
+    console.log('     - Build your data model from scratch');
+    console.log('');
+
+    const choice = await prompt(rl, 'Enter 1 or 2: ');
+    const useSuperstore = choice === '1';
+
+    console.log('\nRequesting verification code...');
+    const initResult = await client.initiateSignup(email, orgName, useSuperstore);
+
+    if (!initResult.success) {
+      console.error(`Failed to initiate signup: ${initResult.error}`);
+      rl.close();
+      process.exit(1);
+    }
+
+    console.log('\n✓ Verification code sent to your email.\n');
+    const code = await prompt(rl, 'Enter 6-digit code: ');
+
+    if (!code || code.length !== 6) {
+      console.error('Invalid verification code');
+      rl.close();
+      process.exit(1);
+    }
+
+    console.log('Creating organization...');
+    const result = await client.completeSignup(email, code);
+
+    if (!result.success) {
+      console.error(`Signup failed: ${result.error}`);
+      rl.close();
+      process.exit(1);
+    }
+
+    // Save credentials
+    const credentials: StoredCredentials = {
+      token: result.token!,
+      email: result.user!.email,
+      role: result.user!.role,
+      databases: result.databases!,
+      expiresAt: result.expiresAt!,
+    };
+
+    saveCredentials(credentials);
+
+    // Display success message
+    console.log('\n✓ Organization created!\n');
+    console.log(`  Database: ${result.databases![0]?.display_name || result.databases![0]?.database_name}`);
+
+    if (result.trial_info) {
+      // Parse and format the expiration date
+      const expiresDate = new Date(result.trial_info.expires_at);
+      const formattedDate = expiresDate.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      console.log(`  Trial expires: ${formattedDate}`);
+      console.log(`  Data limit: ${result.trial_info.max_data_gb}GB`);
+    }
+
+    if (useSuperstore) {
+      console.log('\n  Your database is ready! Try asking questions like:');
+      console.log('  "Show me total sales by category"');
+      console.log('  "Which products have the highest profit margin?"');
+      console.log('  "What are the sales trends by region?"');
+    } else {
+      console.log('\n  Your empty database is ready. Next steps:');
+      console.log('  - Use /quarri-extract to connect data sources');
+      console.log('  - Upload CSVs with quarri_upload_csv');
+      console.log('  - Build your data model with /quarri-model');
+    }
+
+    console.log(`\n  To upgrade to a full account: contact ${result.trial_info?.upgrade_contact || 'theo@quarri.ai'}\n`);
+    console.log('You can now use Quarri tools in Claude Code.');
+
+  } finally {
+    rl.close();
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0] || 'login';
@@ -179,6 +292,10 @@ async function main(): Promise<void> {
     case 'auth':
     case 'login':
       await login();
+      break;
+    case 'signup':
+    case 'create':
+      await signup();
       break;
     case 'logout':
       await logout();
@@ -197,7 +314,8 @@ async function main(): Promise<void> {
       console.log('Usage: npx @quarri/claude-data-tools <command>');
       console.log('');
       console.log('Commands:');
-      console.log('  auth, login              Interactive authentication');
+      console.log('  signup, create           Create a new organization (7-day trial)');
+      console.log('  auth, login              Authenticate existing account');
       console.log('  request <email>          Request verification code');
       console.log('  verify <email> <code>    Complete verification');
       console.log('  logout                   Clear stored credentials');
