@@ -1,22 +1,22 @@
 ---
-description: Define and validate new business metrics
+description: Define business metrics and build metric trees for KPI decomposition
 globs:
 alwaysApply: false
 ---
 
-# /quarri-metric - Metric Definition
+# /quarri-metric - Metric Definition & Metric Trees
 
-Define new business metrics through a guided conversation, validating SQL and documenting for team use.
+Define new business metrics and build metric trees that decompose KPIs into component drivers for root cause analysis.
 
 ## When to Use
 
-Use `/quarri-metric` when users want to create metrics:
-- "Create a metric for customer lifetime value"
-- "Define a retention rate metric"
-- "Add a new KPI for average order value"
-- "Set up a revenue growth metric"
+Use `/quarri-metric` when users want to:
+- Create metrics: "Create a metric for customer lifetime value"
+- Define KPIs: "Define a retention rate metric"
+- Build metric trees: "Decompose revenue into its drivers"
+- Understand relationships: "What metrics drive conversion rate?"
 
-## Metric Definition Process
+## Part 1: Metric Definition
 
 ### Step 1: Understand the Metric
 
@@ -27,13 +27,10 @@ Gather these details through conversation:
    - Examples: "Monthly Recurring Revenue", "Customer Churn Rate"
 
 2. **Description**: What does it measure and why is it important?
-   - Explain in plain English
-   - Include business context
 
 3. **Calculation**: How is it computed?
    - What's the formula?
    - What columns are involved?
-   - Any special conditions or filters?
 
 4. **Dimensions**: How can it be broken down?
    - By region, product, customer segment?
@@ -45,16 +42,11 @@ Gather these details through conversation:
 
 ### Step 2: Map to Schema
 
-Connect the metric to actual database columns:
-
 1. Fetch schema using `quarri_get_schema`
 2. Identify relevant tables and columns
 3. Validate column names and types
-4. Check for required joins
 
 ### Step 3: Write SQL Template
-
-Create the SQL that computes the metric:
 
 ```sql
 -- Template with placeholders for dimensions
@@ -66,14 +58,7 @@ WHERE {filter_conditions}
 GROUP BY {dimension_columns}
 ```
 
-### Step 4: Validate
-
-Test the metric:
-1. Execute the SQL to verify it works
-2. Check the results make sense
-3. Verify dimensions produce valid breakdowns
-
-### Step 5: Save
+### Step 4: Save
 
 Create the metric using `quarri_create_metric`:
 ```json
@@ -85,17 +70,241 @@ Create the metric using `quarri_create_metric`:
 }
 ```
 
+## Part 2: Metric Trees
+
+Metric trees decompose a top-level KPI into its component drivers, enabling systematic root cause analysis.
+
+### What is a Metric Tree?
+
+A metric tree shows how a high-level metric breaks down into component parts:
+
+```
+Revenue
+├── = Customers × Orders/Customer × Revenue/Order
+│
+├── Customers
+│   ├── New Customers (acquisition)
+│   └── Returning Customers (retention)
+│
+├── Orders per Customer (frequency)
+│   ├── Purchase occasions
+│   └── Repeat purchase rate
+│
+└── Revenue per Order (basket size)
+    ├── Units per order
+    ├── Price per unit
+    └── Discount rate
+```
+
+### Common Metric Tree Patterns
+
+#### E-Commerce Revenue Tree
+```
+Revenue = Traffic × Conversion Rate × Average Order Value
+
+├── Traffic
+│   ├── Organic (SEO, direct)
+│   ├── Paid (ads, affiliates)
+│   └── Referral (social, email)
+│
+├── Conversion Rate
+│   ├── Add-to-cart rate
+│   ├── Cart-to-checkout rate
+│   └── Checkout completion rate
+│
+└── Average Order Value
+    ├── Items per order
+    └── Price per item
+```
+
+#### SaaS Revenue Tree
+```
+MRR = Customers × ARPU
+
+├── Customers
+│   ├── New MRR (new customers)
+│   ├── Expansion MRR (upgrades)
+│   ├── Contraction MRR (downgrades)
+│   └── Churned MRR (cancellations)
+│
+└── ARPU (Average Revenue Per User)
+    ├── Plan mix
+    ├── Add-on adoption
+    └── Usage-based fees
+```
+
+#### Customer Lifetime Value Tree
+```
+CLV = ARPU × Avg Lifetime × Gross Margin
+
+├── ARPU (Average Revenue Per User)
+│   ├── Base subscription
+│   └── Additional services
+│
+├── Average Customer Lifetime
+│   ├── 1 / Churn Rate
+│   └── Retention by cohort
+│
+└── Gross Margin
+    ├── Revenue
+    └── Cost of goods/service
+```
+
+#### Sales Pipeline Tree
+```
+Revenue = Leads × Conversion Rate × Deal Size
+
+├── Leads
+│   ├── Marketing Qualified (MQL)
+│   ├── Sales Qualified (SQL)
+│   └── Opportunity Created
+│
+├── Conversion Rate
+│   ├── MQL → SQL rate
+│   ├── SQL → Opportunity rate
+│   ├── Opportunity → Proposal rate
+│   └── Proposal → Close rate
+│
+└── Deal Size
+    ├── Contract value
+    ├── Upsell/cross-sell
+    └── Discounting
+```
+
+### Building a Metric Tree
+
+#### Step 1: Identify the Top-Level Metric
+- What KPI are you trying to understand or improve?
+- Example: "Revenue", "Conversion Rate", "Retention"
+
+#### Step 2: Find the Mathematical Relationship
+Express the metric as a formula:
+- **Multiplicative**: Revenue = Customers × ARPU
+- **Additive**: Revenue = Product A + Product B + Product C
+- **Ratio**: Conversion = Conversions / Visitors
+
+#### Step 3: Decompose Each Component
+For each component, ask: "What drives this?"
+- Keep decomposing until you reach actionable metrics
+- Stop when you reach metrics you can directly measure and influence
+
+#### Step 4: Validate the Tree
+- Components should be MECE (mutually exclusive, collectively exhaustive)
+- Math should work: components should sum/multiply to parent
+- Each leaf should be measurable in your data
+
+### Using Metric Trees for Analysis
+
+Once you have a metric tree, use it for:
+
+**1. Performance Attribution**
+When a metric changes, quantify how much each driver contributed:
+```
+Revenue dropped 10% ($100K → $90K)
+
+Attribution:
+├── Customer count: -5% impact ($5K)
+├── Order frequency: -3% impact ($3K)
+└── Average order value: -2% impact ($2K)
+```
+
+**2. Root Cause Analysis**
+Drill into the largest impact driver:
+```
+Customer count dropped 5%
+├── New customers: -8% (PRIMARY CAUSE)
+│   └── Paid acquisition: -15%
+│   └── Organic: +2%
+└── Retention: +3%
+```
+
+**3. Opportunity Sizing**
+Identify highest-leverage improvements:
+```
+If we improve conversion rate by 10%:
+├── Current: 2.5% conversion
+├── Target: 2.75% conversion
+└── Revenue impact: +$50K/month
+```
+
+### SQL for Metric Tree Analysis
+
+Generate SQL that calculates all components of a metric tree:
+
+```sql
+-- Revenue metric tree components
+WITH metrics AS (
+    SELECT
+        period,
+        COUNT(DISTINCT customer_id) as customers,
+        COUNT(*) as orders,
+        SUM(revenue) as revenue,
+        -- Derived metrics
+        COUNT(*)::float / COUNT(DISTINCT customer_id) as orders_per_customer,
+        SUM(revenue)::float / COUNT(*) as revenue_per_order
+    FROM quarri.bridge
+    WHERE order_date >= DATE '2024-01-01'
+    GROUP BY period
+)
+SELECT
+    period,
+    customers,
+    orders_per_customer,
+    revenue_per_order,
+    revenue,
+    -- Verify: customers * orders_per_customer * revenue_per_order ≈ revenue
+    customers * orders_per_customer * revenue_per_order as calculated_revenue
+FROM metrics
+ORDER BY period;
+```
+
+### Period-over-Period Comparison
+
+```sql
+-- Compare current vs previous period for root cause analysis
+WITH current_period AS (
+    SELECT
+        COUNT(DISTINCT customer_id) as customers,
+        COUNT(*)::float / COUNT(DISTINCT customer_id) as frequency,
+        SUM(revenue)::float / COUNT(*) as aov,
+        SUM(revenue) as revenue
+    FROM quarri.bridge
+    WHERE order_date >= DATE '2024-12-01'
+),
+previous_period AS (
+    SELECT
+        COUNT(DISTINCT customer_id) as customers,
+        COUNT(*)::float / COUNT(DISTINCT customer_id) as frequency,
+        SUM(revenue)::float / COUNT(*) as aov,
+        SUM(revenue) as revenue
+    FROM quarri.bridge
+    WHERE order_date >= DATE '2024-11-01' AND order_date < DATE '2024-12-01'
+)
+SELECT
+    'Customers' as metric,
+    p.customers as previous,
+    c.customers as current,
+    (c.customers - p.customers)::float / p.customers * 100 as pct_change
+FROM current_period c, previous_period p
+UNION ALL
+SELECT
+    'Frequency' as metric,
+    p.frequency as previous,
+    c.frequency as current,
+    (c.frequency - p.frequency)::float / p.frequency * 100 as pct_change
+FROM current_period c, previous_period p
+-- ... continue for all components
+```
+
 ## Common Metric Patterns
 
 ### Simple Aggregation
 ```sql
 -- Total Revenue
-SELECT SUM(revenue) as total_revenue
-FROM quarri.bridge
+SELECT SUM(revenue) as total_revenue FROM quarri.bridge
 
 -- Order Count
-SELECT COUNT(*) as order_count
-FROM quarri.bridge
+SELECT COUNT(*) as order_count FROM quarri.bridge
 ```
 
 ### Ratio Metrics
@@ -126,14 +335,8 @@ GROUP BY month
 SELECT
     current.period,
     (current.revenue - previous.revenue) / previous.revenue as yoy_growth
-FROM (
-    SELECT DATE_TRUNC('year', order_date) as period, SUM(revenue) as revenue
-    FROM orders GROUP BY period
-) current
-JOIN (
-    SELECT DATE_TRUNC('year', order_date) + INTERVAL '1 year' as period, SUM(revenue) as revenue
-    FROM orders GROUP BY period
-) previous ON current.period = previous.period
+FROM (...) current
+JOIN (...) previous ON current.period = previous.period + INTERVAL '1 year'
 ```
 
 ### Customer Metrics
@@ -147,60 +350,7 @@ SELECT
     MAX(order_date) as last_order
 FROM orders
 GROUP BY customer_id
-
--- Customer Retention Rate
-SELECT
-    cohort_month,
-    COUNT(DISTINCT CASE WHEN months_since_first = 0 THEN customer_id END) as cohort_size,
-    COUNT(DISTINCT CASE WHEN months_since_first = 1 THEN customer_id END)::float /
-    COUNT(DISTINCT CASE WHEN months_since_first = 0 THEN customer_id END) as month_1_retention
-FROM customer_cohorts
-GROUP BY cohort_month
 ```
-
-### Funnel Metrics
-```sql
--- Stage Conversion
-SELECT
-    stage,
-    COUNT(*) as count,
-    LAG(COUNT(*)) OVER (ORDER BY stage_order) as previous_stage,
-    COUNT(*)::float / LAG(COUNT(*)) OVER (ORDER BY stage_order) as conversion
-FROM funnel_events
-GROUP BY stage, stage_order
-ORDER BY stage_order
-```
-
-## Dimension Configuration
-
-Metrics can be sliced by dimensions:
-
-### Geographic
-- `region`, `country`, `state`, `city`
-
-### Time
-- `day`, `week`, `month`, `quarter`, `year`
-
-### Product
-- `product_category`, `product_line`, `sku`
-
-### Customer
-- `customer_segment`, `customer_tier`, `acquisition_channel`
-
-### Sales
-- `sales_rep`, `territory`, `deal_type`
-
-## Metric Validation Checklist
-
-Before saving a metric, verify:
-
-- [ ] SQL executes without errors
-- [ ] Results are reasonable (no negative revenue, etc.)
-- [ ] Dimensions produce valid breakdowns
-- [ ] Edge cases handled (nulls, zeros)
-- [ ] Performance is acceptable
-- [ ] Name is unique and clear
-- [ ] Description is comprehensive
 
 ## Output Format
 
@@ -224,41 +374,27 @@ Before saving a metric, verify:
 - [Dimension 1]: [Description]
 - [Dimension 2]: [Description]
 
+### Metric Tree (if applicable)
+```
+[Top-level metric]
+├── [Component 1]
+│   ├── [Sub-component 1a]
+│   └── [Sub-component 1b]
+├── [Component 2]
+└── [Component 3]
+```
+
 ### Validation Results
 - Query executed successfully
 - Sample result: [Sample value]
-- Breakdown by [dimension]: [Sample breakdown]
 
 ### Status
 [Ready to save / Needs revision]
 ```
-
-## Conversation Flow
-
-### Opening
-"I'll help you define a new metric. Let's start with the basics:
-1. What should this metric be called?
-2. What does it measure?"
-
-### Clarification Questions
-- "What columns or tables does this involve?"
-- "Should it be filterable by time period?"
-- "What dimensions should users be able to break it down by?"
-- "Are there any special conditions or filters?"
-
-### Validation
-"I've created the SQL for your metric. Let me test it:
-[Shows SQL and results]
-Does this look correct?"
-
-### Confirmation
-"Here's the complete metric definition:
-[Summary]
-Should I save this metric?"
 
 ## Integration
 
 After creating a metric:
 - Use with `/quarri-query` for natural language queries
 - Reference in `/quarri-analyze` for comprehensive analysis
-- Track on Quarri Canvas dashboards
+- Use `/quarri-diagnose` for root cause analysis with metric trees

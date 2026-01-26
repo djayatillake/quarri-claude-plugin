@@ -19,12 +19,12 @@
     "quarri-guide",
     "quarri-query",
     "quarri-analyze",
-    "quarri-stats",
     "quarri-chart",
     "quarri-explain",
     "quarri-insights",
-    "quarri-extract",
     "quarri-metric",
+    "quarri-diagnose",
+    "quarri-extract",
     "quarri-debug-connector"
   ]
 }

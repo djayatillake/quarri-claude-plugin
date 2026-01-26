@@ -1,24 +1,196 @@
 ---
-description: Generate actionable business insights from data analysis
+description: Statistical analysis and business insights from data
 globs:
 alwaysApply: false
 ---
 
-# /quarri-insights - Business Insight Generation
+# /quarri-insights - Statistical Analysis & Business Insights
 
-Generate actionable business insights from data and statistical analysis results.
+Perform statistical analysis on data and generate actionable business insights with recommendations.
 
 ## When to Use
 
-Use `/quarri-insights` when users need business intelligence:
-- "What insights can you give me from this data?"
-- "What should I learn from these numbers?"
-- "What actions should we take based on this?"
-- "Summarize the key findings"
+Use `/quarri-insights` when users need:
+- Statistical analysis: "What's the distribution of order values?"
+- Business interpretation: "What insights can you give me from this data?"
+- Correlation analysis: "Is there a relationship between price and quantity?"
+- Actionable recommendations: "What should we do based on these numbers?"
 
-## Insight Generation Framework
+## Part 1: Statistical Analysis
 
-### 1. Pattern Recognition
+### Analysis Types
+
+#### 1. Descriptive Statistics
+
+For numeric columns, calculate:
+- **Central tendency**: mean, median, mode
+- **Spread**: std, variance, range, IQR
+- **Shape**: skewness, kurtosis
+- **Percentiles**: 25th, 50th, 75th, 90th, 95th, 99th
+
+```python
+import pandas as pd
+import numpy as np
+
+def descriptive_stats(df, column):
+    return {
+        'count': df[column].count(),
+        'mean': df[column].mean(),
+        'median': df[column].median(),
+        'std': df[column].std(),
+        'min': df[column].min(),
+        'max': df[column].max(),
+        'q25': df[column].quantile(0.25),
+        'q75': df[column].quantile(0.75),
+        'skew': df[column].skew(),
+        'kurtosis': df[column].kurtosis()
+    }
+```
+
+#### 2. Distribution Analysis
+
+Analyze how values are distributed:
+- **Histogram bins**: Frequency distribution
+- **Normality test**: Shapiro-Wilk or D'Agostino
+- **Distribution fit**: Best-fit distribution type
+
+```python
+from scipy import stats
+
+def distribution_analysis(df, column):
+    data = df[column].dropna()
+    hist, bin_edges = np.histogram(data, bins='auto')
+
+    if len(data) >= 20:
+        stat, p_value = stats.shapiro(data[:5000])
+        is_normal = p_value > 0.05
+    else:
+        is_normal = None
+        p_value = None
+
+    return {
+        'histogram': {'counts': hist.tolist(), 'edges': bin_edges.tolist()},
+        'is_normal': is_normal,
+        'normality_p_value': p_value
+    }
+```
+
+#### 3. Correlation Analysis
+
+Find relationships between numeric columns:
+- **Pearson correlation**: Linear relationships
+- **Spearman correlation**: Monotonic relationships
+- **Strong correlations**: |r| > 0.5
+
+```python
+def correlation_analysis(df, columns):
+    numeric_df = df[columns].select_dtypes(include=[np.number])
+    pearson = numeric_df.corr(method='pearson')
+    spearman = numeric_df.corr(method='spearman')
+
+    strong_correlations = []
+    for i, col1 in enumerate(numeric_df.columns):
+        for j, col2 in enumerate(numeric_df.columns):
+            if i < j:
+                r = pearson.loc[col1, col2]
+                if abs(r) > 0.5:
+                    strong_correlations.append({
+                        'columns': [col1, col2],
+                        'pearson_r': r,
+                        'spearman_r': spearman.loc[col1, col2]
+                    })
+
+    return {
+        'correlation_matrix': pearson.to_dict(),
+        'strong_correlations': strong_correlations
+    }
+```
+
+#### 4. Outlier Detection
+
+Identify unusual values:
+- **Z-score method**: Values > 3 std from mean
+- **IQR method**: Values outside 1.5*IQR from quartiles
+
+```python
+def detect_outliers(df, column, method='iqr'):
+    data = df[column].dropna()
+
+    if method == 'zscore':
+        z_scores = np.abs(stats.zscore(data))
+        outliers = data[z_scores > 3]
+    elif method == 'iqr':
+        q1, q3 = data.quantile([0.25, 0.75])
+        iqr = q3 - q1
+        lower_bound = q1 - 1.5 * iqr
+        upper_bound = q3 + 1.5 * iqr
+        outliers = data[(data < lower_bound) | (data > upper_bound)]
+
+    return {
+        'outlier_count': len(outliers),
+        'outlier_percentage': len(outliers) / len(data) * 100,
+        'outlier_values': outliers.head(20).tolist(),
+        'bounds': {'lower': lower_bound, 'upper': upper_bound} if method == 'iqr' else None
+    }
+```
+
+#### 5. Time Series Analysis
+
+For time-based data:
+- **Trend detection**: Linear regression on time
+- **Growth rate**: Period-over-period changes
+- **Volatility**: Coefficient of variation
+
+```python
+def time_series_analysis(df, date_column, value_column):
+    df_sorted = df.sort_values(date_column)
+    df_sorted['pct_change'] = df_sorted[value_column].pct_change()
+
+    x = np.arange(len(df_sorted))
+    slope, intercept, r_value, p_value, std_err = stats.linregress(x, df_sorted[value_column])
+
+    trend_direction = 'increasing' if slope > 0 else 'decreasing' if slope < 0 else 'stable'
+
+    return {
+        'trend_direction': trend_direction,
+        'trend_slope': slope,
+        'trend_r_squared': r_value ** 2,
+        'average_growth_rate': df_sorted['pct_change'].mean(),
+        'volatility': df_sorted[value_column].std() / df_sorted[value_column].mean()
+    }
+```
+
+#### 6. Segment Comparison
+
+Compare groups within data:
+- **Group statistics**: Mean, median by group
+- **Statistical tests**: t-test, ANOVA for differences
+- **Effect size**: Cohen's d for magnitude
+
+```python
+def segment_comparison(df, group_column, value_column):
+    groups = df.groupby(group_column)[value_column]
+    group_stats = groups.agg(['count', 'mean', 'median', 'std']).to_dict('index')
+
+    group_values = [group.values for name, group in groups]
+    if len(group_values) >= 2:
+        f_stat, p_value = stats.f_oneway(*group_values)
+        significant_difference = p_value < 0.05
+    else:
+        f_stat, p_value = None, None
+        significant_difference = None
+
+    return {
+        'group_statistics': group_stats,
+        'anova_f_statistic': f_stat,
+        'anova_p_value': p_value,
+        'significant_difference': significant_difference
+    }
+```
+
+## Part 2: Business Insight Generation
+
+### Pattern Recognition
 
 Identify these patterns in the data:
 
@@ -41,9 +213,7 @@ Identify these patterns in the data:
 - Are there surprising connections?
 - What drives what?
 
-### 2. Insight Categories
-
-Generate insights across these categories:
+### Insight Categories
 
 #### Key Finding
 The single most important takeaway:
@@ -52,29 +222,24 @@ The single most important takeaway:
 #### Performance Insights
 How things are performing:
 > "Revenue grew 23% YoY, outpacing the industry average of 15%."
-> "Customer retention improved from 72% to 81% after implementing the loyalty program."
 
 #### Comparison Insights
 How segments differ:
 > "Enterprise customers spend 4.2x more per order than SMB customers."
-> "West region outperforms East region by 35% in conversion rate."
 
 #### Trend Insights
 What's changing over time:
 > "Mobile orders increased from 12% to 47% of total orders over 18 months."
-> "Average order value peaked in Q4 at $156, compared to $112 annual average."
 
 #### Risk Insights
 Warning signs and concerns:
 > "Three of top 10 customers reduced orders by >50% this quarter."
-> "Inventory turnover dropped 30%, indicating potential overstock."
 
 #### Opportunity Insights
 Potential for growth or improvement:
 > "Cross-sell rate for Product A is only 8%, compared to 28% category average."
-> "Untapped market segment shows 3x growth rate with minimal coverage."
 
-### 3. Insight Quality Criteria
+### Insight Quality Criteria
 
 Good insights are:
 
@@ -94,74 +259,56 @@ Good insights are:
 - Bad: "The median is 45"
 - Good: "Half of orders are under $45, suggesting opportunity for upselling"
 
-## Insight Generation Process
+## Workflow
 
-### Step 1: Understand the Business Context
-
-Before generating insights, consider:
-- What question was the user trying to answer?
-- What decisions might they make based on this?
-- What's the business domain?
-
-### Step 2: Analyze the Numbers
-
-Look at the data systematically:
-- What are the highest and lowest values?
-- What percentage does each segment represent?
-- How do values compare to averages?
-- What changed over time?
-
-### Step 3: Find the Story
-
-Connect patterns to meaning:
-- Why might this pattern exist?
-- What could be causing this?
-- What implications does this have?
-
-### Step 4: Prioritize Insights
-
-Rank insights by:
-1. **Impact**: How significant is this finding?
-2. **Actionability**: Can something be done about it?
-3. **Urgency**: Does this require immediate attention?
-4. **Confidence**: How reliable is this conclusion?
-
-### Step 5: Frame for Action
-
-For each insight, consider:
-- What should the reader do differently?
-- What additional analysis would help?
-- What questions does this raise?
+1. **Receive data**: From a previous query or via `quarri_execute_sql`
+2. **Identify analysis type**: Based on data shape and user question
+3. **Perform statistical analysis**: Run appropriate calculations
+4. **Generate insights**: Interpret results in business context
+5. **Prioritize findings**: Rank by impact, actionability, urgency
+6. **Frame recommendations**: Suggest specific actions
 
 ## Output Format
 
 ```markdown
-## Business Insights: [Topic]
+## Analysis: [Data Description]
 
-### Key Finding
+### Data Overview
+- Rows: [count]
+- Numeric columns: [list]
+- Categorical columns: [list]
+- Date range: [if applicable]
+
+### Statistical Findings
+
+#### Descriptive Statistics
+| Metric | Value |
+|--------|-------|
+| Mean   | X     |
+| Median | Y     |
+| Std    | Z     |
+
+#### Key Patterns
+- [Pattern 1 with numbers]
+- [Pattern 2 with numbers]
+- [Pattern 3 with numbers]
+
+### Business Insights
+
+#### Key Finding
 [The single most important insight - bolded and specific]
 
-### Performance Summary
-- [Metric 1]: [Value with context]
-- [Metric 2]: [Value with context]
-- [Metric 3]: [Value with context]
+#### Insights
 
-### Insights
-
-#### 1. [Category]: [Insight Title]
+**1. [Category]: [Insight Title]**
 [Specific insight with numbers]
-**Implication**: [What this means]
-**Recommended Action**: [What to do]
+- **Implication**: [What this means]
+- **Recommended Action**: [What to do]
 
-#### 2. [Category]: [Insight Title]
+**2. [Category]: [Insight Title]**
 [Specific insight with numbers]
-**Implication**: [What this means]
-**Recommended Action**: [What to do]
-
-#### 3. [Category]: [Insight Title]
-[Specific insight with numbers]
-**Implication**: [What this means]
-**Recommended Action**: [What to do]
+- **Implication**: [What this means]
+- **Recommended Action**: [What to do]
 
 ### Risks to Monitor
 - [Risk 1 with trigger condition]
@@ -173,29 +320,9 @@ For each insight, consider:
 3. [Suggested follow-up analysis]
 ```
 
-## Example Insights
-
-### Revenue Analysis
-> **Key Finding**: The top 3 customers represent 45% of total revenue, creating significant concentration risk. Customer #2's orders dropped 30% last quarter.
->
-> **Insight 1 (Concentration)**: Revenue is highly concentrated - top 10% of customers drive 72% of revenue
-> - Implication: Business is vulnerable to customer churn
-> - Action: Implement customer health scoring and proactive retention for top accounts
->
-> **Insight 2 (Trend)**: Q4 revenue was 40% higher than other quarters, indicating strong seasonality
-> - Implication: Cash flow and resource planning needs to account for seasonal swings
-> - Action: Build inventory reserves before Q4, consider seasonal promotions in Q2
-
-### Customer Analysis
-> **Key Finding**: Customer acquisition cost increased 45% while lifetime value remained flat, indicating deteriorating unit economics.
->
-> **Insight 1 (Efficiency)**: Paid social CAC is 3x email CAC with similar conversion rates
-> - Implication: Marketing spend is not optimally allocated
-> - Action: Shift 20% of paid social budget to email marketing
-
 ## Integration
 
-Insights work best when combined with:
-- `/quarri-analyze`: Statistical foundation for insights
-- `/quarri-chart`: Visual support for key findings
-- `/quarri-query`: Additional data to validate hypotheses
+This skill works well with:
+- `/quarri-query`: Get data first, then analyze
+- `/quarri-chart`: Visualize statistical findings
+- `/quarri-analyze`: Called as part of the full analysis pipeline

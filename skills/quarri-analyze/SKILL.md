@@ -1,12 +1,12 @@
 ---
-description: Run complete data analysis pipeline with statistics, charts, and insights
+description: Run complete data analysis pipeline orchestrating query, insights, and charts
 globs:
 alwaysApply: false
 ---
 
 # /quarri-analyze - Full Analysis Pipeline
 
-Run a complete data analysis pipeline that generates SQL, executes it, performs statistical analysis, recommends charts, and generates business insights.
+Orchestrate a complete data analysis pipeline by coordinating query generation, statistical analysis, business insights, and visualization.
 
 ## When to Use
 
@@ -18,180 +18,257 @@ Use `/quarri-analyze` when users want comprehensive analysis:
 
 This is more powerful than `/quarri-query` as it provides statistics, visualizations, and actionable insights.
 
-## Pipeline Stages
+## Orchestration Flow
 
-### Stage 1: Query Generation
+```
+/quarri-analyze
+    │
+    ├── 1. /quarri-query
+    │       └── Generate SQL, fetch schema, execute query
+    │
+    ├── 2. /quarri-insights
+    │       └── Statistical analysis + business interpretation
+    │
+    └── 3. /quarri-chart (if visualization warranted)
+            └── Chart recommendation + configuration
+```
 
-Generate SQL from the analysis question:
+### Stage 1: Query (via /quarri-query)
 
+Generate and execute SQL for the analysis question:
 1. Fetch schema using `quarri_get_schema`
 2. Search for relevant metrics using `quarri_search_metrics`
-3. Get applicable rules using `quarri_list_rules`
-4. Generate SQL following star schema patterns
-5. Execute using `quarri_execute_sql`
+3. Generate SQL following star schema patterns
+4. Execute using `quarri_execute_sql`
 
-### Stage 2: Statistical Analysis
+### Stage 2: Insights (via /quarri-insights)
 
-Analyze the query results to understand patterns:
+Analyze the query results:
+- Descriptive statistics for numeric columns
+- Distribution and outlier analysis
+- Correlation between variables
+- Time series trends if applicable
+- Business interpretation and recommendations
 
-**For Numeric Columns:**
-- Calculate: count, mean, median, std, min, max, quartiles
-- Identify outliers (values > 2 std from mean)
-- Calculate coefficient of variation
-- Detect skewness
+### Stage 3: Chart (via /quarri-chart)
 
-**For Categorical Columns:**
-- Calculate: unique count, mode, frequency distribution
-- Identify concentration (top N % of total)
+If data warrants visualization:
+- Apply chart decision tree
+- Generate appropriate chart configuration
+- Recommend alternatives if applicable
 
-**For Time Series:**
-- Calculate: trend direction, growth rate
-- Identify: seasonality, peaks, troughs
-- Compare: period-over-period changes
+## MECE Framework for Complex Analysis
 
-**Cross-Column Analysis:**
-- Correlation between numeric columns
-- Distribution of measures across categories
-- Concentration analysis (Pareto/80-20)
+When analyzing complex business questions, structure the breakdown using the MECE principle:
+- **Mutually Exclusive**: Categories don't overlap
+- **Collectively Exhaustive**: All possibilities covered
 
-### Stage 3: Chart Recommendation
+### MECE Application Examples
 
-Based on the data and question, recommend the optimal chart type:
-
-**Decision Tree:**
-
+#### Revenue Analysis
+"Why is revenue changing?"
 ```
-Is this a time series question?
-├── Yes → Line chart (or area if cumulative)
-└── No → Is this comparing categories?
-    ├── Yes → Are there many categories (>10)?
-    │   ├── Yes → Horizontal bar chart
-    │   └── No → Is there a ranking implied?
-    │       ├── Yes → Bar chart (sorted)
-    │       └── No → Column chart
-    └── No → Is this showing distribution?
-        ├── Yes → Histogram or box plot
-        └── No → Is this showing parts of whole?
-            ├── Yes → Pie chart (if <7 categories) or stacked bar
-            └── No → Is this showing relationship?
-                ├── Yes → Scatter plot
-                └── No → Simple table
+Revenue Drivers (MECE Breakdown)
+├── Volume Drivers
+│   ├── Customer count
+│   ├── Order frequency per customer
+│   └── Units per order
+├── Price Drivers
+│   ├── Unit price
+│   ├── Product mix shift
+│   └── Discount rates
+└── External Factors
+    ├── Seasonality
+    ├── Market conditions
+    └── Competition
 ```
 
-**Chart Configuration:**
-Generate a Plotly chart configuration with:
-- Appropriate chart type
-- Clear title and axis labels
-- Proper formatting (currency, percentages, dates)
-- Reasonable dimensions and colors
+#### Customer Churn Analysis
+"What's causing churn?"
+```
+Churn Factors (MECE Breakdown)
+├── Product Issues
+│   ├── Quality problems
+│   ├── Feature gaps
+│   └── Performance issues
+├── Service Issues
+│   ├── Support quality
+│   ├── Response time
+│   └── Resolution rate
+├── Price Issues
+│   ├── Absolute cost
+│   ├── Perceived value
+│   └── Competitor pricing
+└── External Factors
+    ├── Business closure
+    ├── Changed needs
+    └── Market exit
+```
 
-### Stage 4: Insight Generation
+#### Sales Performance
+"Why are sales underperforming?"
+```
+Sales Performance (MECE Breakdown)
+├── Lead Generation
+│   ├── Marketing qualified leads
+│   ├── Inbound inquiries
+│   └── Outbound prospecting
+├── Conversion Rate
+│   ├── Lead to opportunity
+│   ├── Opportunity to proposal
+│   └── Proposal to close
+└── Deal Size
+    ├── Initial contract value
+    ├── Upsell/cross-sell
+    └── Discounting
+```
 
-Generate actionable business insights from the analysis:
+### When to Apply MECE
 
-**Pattern Recognition:**
-- Identify the top performers and laggards
-- Find significant outliers or anomalies
-- Detect trends (growing, declining, stable)
-- Spot concentration (few items driving results)
+Apply MECE structuring when:
+1. Question involves "why" (root cause analysis)
+2. Multiple factors could explain the outcome
+3. User needs comprehensive coverage
+4. Decision-making requires evaluating alternatives
 
-**Insight Categories:**
-1. **Key Finding**: The most important takeaway
-2. **Trends**: Direction and magnitude of changes
-3. **Comparisons**: How segments differ
-4. **Anomalies**: Unexpected values or patterns
-5. **Recommendations**: Suggested actions or deeper analysis
-
-**Insight Format:**
-- Lead with the most important finding
-- Use specific numbers (not "revenue increased" but "revenue increased 23%")
-- Provide context ("compared to previous period", "vs. average")
-- Be actionable where possible
+For simple queries ("show revenue by region"), skip MECE and provide direct analysis.
 
 ## Workflow
 
 ```
 1. Parse the analysis question
-2. [Stage 1] Generate and execute SQL query
-   - Show SQL and explain what it queries
-3. [Stage 2] Perform statistical analysis on results
-   - Identify key statistical patterns
-4. [Stage 3] Determine appropriate visualization
-   - Generate chart configuration
-5. [Stage 4] Generate business insights
-   - Synthesize findings into actionable insights
-6. Present comprehensive analysis to user
+   - Identify primary metric/measure
+   - Identify dimensions/breakdowns
+   - Determine time scope
+
+2. Execute /quarri-query
+   - Generate appropriate SQL
+   - Execute and retrieve data
+   - Validate results
+
+3. Execute /quarri-insights
+   - Run statistical analysis
+   - Identify patterns
+   - Generate business insights
+
+4. Determine if visualization needed
+   - Data has clear visual pattern?
+   - More than 3 data points?
+   - User explicitly requested chart?
+
+5. If yes, execute /quarri-chart
+   - Select appropriate chart type
+   - Generate configuration
+
+6. Synthesize comprehensive report
+   - Combine all findings
+   - Apply MECE structure if complex question
+   - Prioritize actionable recommendations
 ```
-
-## Example Interaction
-
-**User**: "Analyze revenue trends by product category"
-
-**Claude's Analysis**:
-
-### SQL Query
-```sql
-SELECT
-    DATE_TRUNC('month', order_date) as month,
-    product_category,
-    SUM(revenue) as total_revenue
-FROM quarri.bridge
-WHERE order_date >= DATE '2024-01-01'
-GROUP BY month, product_category
-ORDER BY month, product_category;
-```
-
-### Statistical Analysis
-- **Total Revenue**: $4.2M across 5 categories
-- **Top Category**: Electronics (42% of total)
-- **Growth Rate**: +15% MoM average
-- **Seasonality**: Peak in Q4 (holiday season)
-
-### Recommended Chart
-Line chart showing revenue trends by category over time, with:
-- X-axis: Month
-- Y-axis: Revenue
-- Color: Product category
-- Annotation: Notable peaks
-
-### Key Insights
-1. **Electronics dominates**: 42% of revenue from single category - diversification opportunity
-2. **Q4 spike**: 35% of annual revenue in Q4 - plan inventory accordingly
-3. **Clothing growing fastest**: +28% YoY vs. +15% average - invest in expansion
-4. **Home goods declining**: -8% YoY - investigate root cause
 
 ## Output Format
-
-Present analysis in this structure:
 
 ```markdown
 ## Analysis: [Question Summary]
 
 ### Query
-[SQL in code block with brief explanation]
+```sql
+[SQL generated by /quarri-query]
+```
+[Brief explanation of what the query retrieves]
 
 ### Data Summary
-[Row count, date range, key dimensions]
+- **Rows**: [count]
+- **Date range**: [range]
+- **Key dimensions**: [list]
 
 ### Statistical Findings
-[Bullet points of key statistics]
+[From /quarri-insights]
+- [Key statistic 1]
+- [Key statistic 2]
+- [Key statistic 3]
+
+### MECE Breakdown (if applicable)
+[Structured analysis of drivers/factors]
+
+### Business Insights
+
+#### Key Finding
+**[Most important takeaway with specific numbers]**
+
+#### Additional Insights
+1. **[Insight type]**: [Specific finding]
+   - Implication: [What it means]
+   - Action: [What to do]
+
+2. **[Insight type]**: [Specific finding]
+   - Implication: [What it means]
+   - Action: [What to do]
 
 ### Visualization
-[Chart recommendation with rationale]
-[If chart generated, include config for rendering]
+[From /quarri-chart if applicable]
+[Chart type recommendation with rationale]
+[Configuration or URL]
 
-### Insights
-1. **[Key Finding]**: [Specific insight with numbers]
-2. **[Trend/Pattern]**: [Description with context]
-3. **[Recommendation]**: [Actionable suggestion]
-
-### Suggested Follow-up
-[Questions for deeper analysis]
+### Recommended Next Steps
+1. [Immediate action]
+2. [Follow-up analysis]
+3. [Deeper investigation if warranted]
 ```
+
+## Example: Full Analysis
+
+**User**: "Analyze why revenue dropped last month"
+
+**Analysis Output**:
+
+### Query
+```sql
+SELECT
+    DATE_TRUNC('week', order_date) as week,
+    product_category,
+    COUNT(*) as order_count,
+    COUNT(DISTINCT customer_id) as customers,
+    SUM(revenue) as revenue,
+    AVG(order_value) as avg_order_value
+FROM quarri.bridge
+WHERE order_date >= DATE '2024-11-01'
+GROUP BY week, product_category
+ORDER BY week, product_category
+```
+
+### MECE Breakdown: Revenue Decline Drivers
+
+```
+Revenue = Customers × Orders/Customer × Revenue/Order
+
+Analysis by Driver:
+├── Customer Count: -8% (from 1,245 to 1,146)
+│   └── PRIMARY DRIVER: New customer acquisition dropped
+├── Order Frequency: -2% (from 2.3 to 2.25 orders/customer)
+│   └── Minor decline, within normal range
+└── Revenue per Order: +1% (from $89 to $90)
+    └── Stable, slight increase
+```
+
+### Key Finding
+**Customer acquisition dropped 8%, accounting for 75% of the revenue decline. New customer count fell from 312 to 198 (-37%).**
+
+### Recommended Actions
+1. **Immediate**: Review marketing spend and campaign performance from last month
+2. **This week**: Analyze acquisition channel performance (paid vs organic)
+3. **Follow-up**: Compare conversion rates by channel to identify where leads are dropping
 
 ## Error Handling
 
-- If query returns no data, suggest adjusting filters
-- If data is too sparse for statistics, note limitations
-- If chart type unclear, present options to user
-- Log analysis results for future reference (optional)
+- If query returns no data, suggest adjusting filters or date range
+- If statistical analysis fails, report data quality issues
+- If MECE breakdown unclear, ask clarifying questions
+- Always provide partial results if some stages succeed
+
+## Integration
+
+This skill orchestrates:
+- `/quarri-query` for data retrieval
+- `/quarri-insights` for statistical analysis and business interpretation
+- `/quarri-chart` for visualization recommendations
