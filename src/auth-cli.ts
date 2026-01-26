@@ -284,6 +284,52 @@ async function signup(): Promise<void> {
   }
 }
 
+async function deleteAccount(): Promise<void> {
+  const rl = createReadline();
+
+  try {
+    const credentials = loadCredentials();
+    if (!credentials) {
+      console.error('Not authenticated. Nothing to delete.');
+      rl.close();
+      process.exit(1);
+    }
+
+    console.log('\n⚠️  Delete Account\n');
+    console.log(`You are about to permanently delete your account: ${credentials.email}`);
+    console.log('This will delete:');
+    console.log('  - Your user account');
+    console.log('  - Your organization and all its data');
+    console.log('  - All databases and configurations');
+    console.log('\nThis action cannot be undone.\n');
+
+    const confirm = await prompt(rl, 'Type "DELETE" to confirm: ');
+    if (confirm !== 'DELETE') {
+      console.log('Deletion cancelled.');
+      rl.close();
+      return;
+    }
+
+    client.setToken(credentials.token);
+    console.log('\nDeleting account...');
+    const result = await client.deleteAccount();
+
+    if (!result.success) {
+      console.error(`Failed to delete account: ${result.error}`);
+      rl.close();
+      process.exit(1);
+    }
+
+    // Clear local credentials
+    clearCredentials();
+
+    console.log('\n✓ Account deleted successfully.\n');
+
+  } finally {
+    rl.close();
+  }
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const command = args[0] || 'login';
@@ -296,6 +342,9 @@ async function main(): Promise<void> {
     case 'signup':
     case 'create':
       await signup();
+      break;
+    case 'delete-account':
+      await deleteAccount();
       break;
     case 'logout':
       await logout();
@@ -316,10 +365,13 @@ async function main(): Promise<void> {
       console.log('Commands:');
       console.log('  signup, create           Create a new organization (7-day trial)');
       console.log('  auth, login              Authenticate existing account');
-      console.log('  request <email>          Request verification code');
-      console.log('  verify <email> <code>    Complete verification');
       console.log('  logout                   Clear stored credentials');
       console.log('  status                   Show authentication status');
+      console.log('  delete-account           Permanently delete your trial account');
+      console.log('');
+      console.log('Advanced:');
+      console.log('  request <email>          Request verification code');
+      console.log('  verify <email> <code>    Complete verification');
       break;
   }
 }

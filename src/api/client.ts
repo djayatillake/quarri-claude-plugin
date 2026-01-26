@@ -281,6 +281,24 @@ export class QuarriApiClient {
     return this.request<TrialStatusResponse>('GET', '/api/auth/cli/trial-status');
   }
 
+  /**
+   * Delete the authenticated user's trial account and organization
+   */
+  async deleteAccount(): Promise<AuthResponse> {
+    const result = await this.request<AuthResponse>(
+      'DELETE',
+      '/api/auth/cli/delete-account',
+      undefined,
+      true
+    );
+
+    if (!result.success) {
+      return { success: false, error: result.error };
+    }
+
+    return { success: true, ...result.data };
+  }
+
   // ==================== Tool Methods ====================
 
   /**
