@@ -103,8 +103,20 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
-  // No resources are available - throw proper error instead of returning
-  // unsupported format that causes "Unsupported UI resource content format" errors
+  // For ui:// scheme URIs (cached from old versions), return valid empty HTML
+  // Claude Desktop expects text/html;profile=mcp-app for UI resources
+  if (uri.startsWith('ui://')) {
+    return {
+      contents: [
+        {
+          uri: uri,
+          mimeType: 'text/html;profile=mcp-app',
+          text: '<!-- Resource no longer available -->',
+        },
+      ],
+    };
+  }
+  // For other URIs, return proper error
   throw new McpError(
     ErrorCode.InvalidRequest,
     `Resource not found: ${uri}`
