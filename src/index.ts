@@ -492,19 +492,20 @@ function formatToolResponse(toolName: string, result: Record<string, unknown>): 
  * Main entry point
  */
 async function main(): Promise<void> {
-  // Check for initial health check
-  const health = await client.healthCheck();
-  if (!health.success) {
-    console.error('Warning: Could not connect to Quarri API');
-  }
-
-  // Create transport
+  // Create transport and connect immediately - don't block on health check
   const transport = new StdioServerTransport();
-
-  // Connect server to transport
   await server.connect(transport);
 
   console.error('Quarri MCP server started');
+
+  // Non-blocking health check after server is ready
+  client.healthCheck().then((health) => {
+    if (!health.success) {
+      console.error('Warning: Could not connect to Quarri API');
+    }
+  }).catch(() => {
+    console.error('Warning: Health check failed');
+  });
 }
 
 // Run the server
