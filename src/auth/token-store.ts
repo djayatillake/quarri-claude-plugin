@@ -107,6 +107,7 @@ export function getSelectedDatabase(): string | null {
 
 /**
  * Set the selected database
+ * Accepts either database_name or display_name, stores the actual database_name
  */
 export function setSelectedDatabase(databaseName: string): boolean {
   const credentials = loadCredentials();
@@ -114,16 +115,17 @@ export function setSelectedDatabase(databaseName: string): boolean {
     return false;
   }
 
-  // Verify database is in user's list
-  const hasAccess = credentials.databases.some(
-    (db) => db.database_name === databaseName
+  // Find database by database_name or display_name
+  const db = credentials.databases.find(
+    (d) => d.database_name === databaseName || d.display_name === databaseName
   );
 
-  if (!hasAccess && credentials.role !== 'super_admin') {
+  if (!db && credentials.role !== 'super_admin') {
     return false;
   }
 
-  credentials.selectedDatabase = databaseName;
+  // Store the actual database_name (not display_name)
+  credentials.selectedDatabase = db ? db.database_name : databaseName;
   saveCredentials(credentials);
   return true;
 }
