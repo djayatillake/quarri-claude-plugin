@@ -1,6 +1,6 @@
 {
   "name": "@quarri/claude-data-tools",
-  "version": "1.2.7",
+  "version": "1.3.0",
   "description": "Quarri Data Assistant - Natural language data analysis with Quarri",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
