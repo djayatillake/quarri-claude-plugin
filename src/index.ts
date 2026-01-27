@@ -11,8 +11,9 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  ListResourcesRequestSchema,
-  ReadResourceRequestSchema,
+  // Resource schemas disabled - Claude Desktop doesn't support custom MIME types
+  // ListResourcesRequestSchema,
+  // ReadResourceRequestSchema,
   ErrorCode,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -27,12 +28,15 @@ import {
   TOOL_DEFINITIONS,
   getBackendToolName,
 } from './tools/definitions.js';
-import { UI_RESOURCES } from './ui/resources.js';
+// UI_RESOURCES disabled - Claude Desktop doesn't support custom MIME types
+// import { UI_RESOURCES } from './ui/resources.js';
 
 // Initialize API client
 const client = new QuarriApiClient();
 
-// Initialize MCP server with resources capability
+// Initialize MCP server
+// Note: Resources capability disabled - Claude Desktop only supports text/html;profile=mcp-app
+// Our custom MIME types (application/vnd.quarri.*+json) cause "unsupported UI resource" errors
 const server = new Server(
   {
     name: 'quarri',
@@ -48,7 +52,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
-      resources: {},
+      // resources: {}, // Disabled until Claude Desktop supports custom MIME types
     },
   }
 );
@@ -89,43 +93,21 @@ After authenticating, restart Claude Code to pick up the credentials.
 `.trim();
 }
 
-/**
- * Handle list resources request
- */
-server.setRequestHandler(ListResourcesRequestSchema, async () => {
-  return {
-    resources: UI_RESOURCES.map((resource) => ({
-      uri: resource.uri,
-      name: resource.name,
-      description: resource.description,
-      mimeType: resource.mimeType,
-    })),
-  };
-});
-
-/**
- * Handle read resource request
- */
-server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-  const { uri } = request.params;
-  const resource = UI_RESOURCES.find((r) => r.uri === uri);
-
-  if (!resource) {
-    throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${uri}`);
-  }
-
-  // Resources are populated dynamically by tool responses
-  // This handler returns an empty template
-  return {
-    contents: [
-      {
-        uri: resource.uri,
-        mimeType: resource.mimeType,
-        text: JSON.stringify({ type: resource.name, data: null }),
-      },
-    ],
-  };
-});
+// Resource handlers disabled - Claude Desktop only supports text/html;profile=mcp-app
+// TODO: Re-enable when Claude Desktop adds support for custom MIME types
+// server.setRequestHandler(ListResourcesRequestSchema, async () => {
+//   return {
+//     resources: UI_RESOURCES.map((resource) => ({
+//       uri: resource.uri,
+//       name: resource.name,
+//       description: resource.description,
+//       mimeType: resource.mimeType,
+//     })),
+//   };
+// });
+// server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+//   ...
+// });
 
 /**
  * Handle list tools request
