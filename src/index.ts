@@ -34,6 +34,9 @@ import {
 // Initialize API client
 const client = new QuarriApiClient();
 
+// Embedded 32x32 Quarri icon as data URI (971 bytes)
+const QUARRI_ICON_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAADkklEQVR4nL2XaahNURTHf/ccwzNPzyxDSeahSCmZkuHJPPsmUmYppWcsZChJFJ/wwawQiuKL+CCRIVPkEZkicxnf0ar/0XrHve7j3fdWnc6+/332Xv+9pr0ulF0CPRUiAVBJ4xpALzdneKqiiDQCrgARcARo7+bCXCsLdTo7fXdgiPBOwHGRKAZWA7Vz6ZYgYdJ2wCspPAw0Fz4cuC+8CJiUIP/Pbkk5P5tMBKZr3BTYJ2WRTh1LIfBD+Bmg5//ER8qNza9HnbJLLuj6AteFPwHGCW8GHHJrtop0LEFplNcAVsqvtslemfWpfu8C6ujb2cBn4WeBDsIHATeFvwHmApXTHPIPf3cB7mrhHW2EzHnLnewTsFBzNYGdbm4LUFVz9s0H4VeB3tLzhyUq6T1FH29QADUEDgh7B0wGWrjT3QP6a61lyAXhb4EZwhsDe4SvTej7LTEwBvgJdAR6AB+1cLNMWBfYIfc8Bx5p3mKlifaYpjnDL6tmtNO+hdkIjNXCHvK7jQdqbhHwXdhBoLVIFabJCnPLNmGDdSAbLy8tgW6yhp20OjDL+TGOCy9tXPQ/VDa01an7AZ0zEQjILCk9eXpssxHAOVcZ45pRpHoxR2RaKRADKX6v9TYuIUHid5QmVeJ0DN1T7PAfckWgilgsZfHeVYACrcvLZProL5ZIEvabe5L2VNOcBe9XfbsfyAdOKxtSwksQoJREvmW47VLCzRomA+SuUIXKSvkJFbkSOoIsCpPE8sW+2BGJFRteT99uB4YBy5Qt54GTwIpsQRhlOJ0pNLkILHCuiM1pabcK2C3skAqQFZ7FKkwWB7cz6Qn1HqnJ7i4l7VTzNb6m93XVByMyXqkXqVyb+dH8A+EXXdOS9i4I9R4lc3oCdR2B6lIYX0A39P4qy6CKeNRdRJaeJhOAmQl9vyUGCrTQrt3RzgJzXAWsrxzfIWyPSJKoiutkIWtcjmW7C3BFZ6luxUnyvW0+z20cySK4FszatMeas3RrKXyFW7MJaOAKXFYZq4X5ImBk+qjbiRRQI525n8uCcZv21PUJdreUWkJXZsfIBUu0WRxgk3U9x6ezDEBX9SlhL4CpuWrbxwFftPFumT4UMav7qIuKCW10cVGmDjl0i7uqmEQiY+2YyVBn7jP6zq/PiQRuPN41Ii/1fpZox8vlX1LgiNQC1gCvgfW5/kOSTbxZa2fAy11Sicuowv6UpiNSJvkFzuMCrxHaJBsAAAAASUVORK5CYII=';
+
 // Initialize MCP server
 // Note: Resources capability disabled - Claude Desktop only supports text/html;profile=mcp-app
 // Our custom MIME types (application/vnd.quarri.*+json) cause "unsupported UI resource" errors
@@ -43,9 +46,9 @@ const server = new Server(
     version: '1.0.0',
     icons: [
       {
-        src: 'https://app.quarri.ai/static/quarri_logo.png',
+        src: `data:image/png;base64,${QUARRI_ICON_BASE64}`,
         mimeType: 'image/png',
-        sizes: ['48x48'],
+        sizes: ['32x32'],
       },
     ],
   },
