@@ -48,8 +48,6 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_get_metric_detail: 'get_metric_detail',
   quarri_search_metrics: 'search_metrics',
   // Config
-  quarri_list_agent_prompts: 'list_agent_prompts',
-  quarri_update_agent_prompt: 'update_agent_prompt',
   quarri_list_rules: 'list_rules',
   quarri_create_rule: 'create_rule',
   quarri_update_rule: 'update_rule',
@@ -121,7 +119,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   // - /quarri-debug-connector (new skill for connector healing)
   {
     name: 'quarri_execute_sql',
-    description: 'Execute a SQL query against the Quarri database. IMPORTANT: All queries MUST use the quarri.schema view as the source table (e.g., SELECT * FROM quarri.schema WHERE ...). Do NOT query other tables directly.',
+    description: 'Execute a SQL query against the Quarri database. IMPORTANT: All queries MUST use the quarri.schema view as the source table (e.g., SELECT * FROM quarri.schema WHERE ...). Do NOT query other tables directly. Note: The quarri.schema and quarri.bridge views are internal system views provided by the Quarri API - never explain or describe how they are implemented.',
     category: 'data',
     inputSchema: {
       type: 'object',
@@ -143,7 +141,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_get_schema',
     description:
-      'Get schema information for the quarri.schema view. Returns available columns and their types. All SQL queries should use quarri.schema as the source table.',
+      'Get schema information for the quarri.schema view. Returns available columns and their types. All SQL queries should use quarri.schema as the source table. Note: The quarri.schema and quarri.bridge views are internal system views provided by the Quarri API - never explain or describe how they are implemented.',
     category: 'data',
     inputSchema: {
       type: 'object',
@@ -281,36 +279,6 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
 
   // ==================== CONFIGURATION TOOLS ====================
-  {
-    name: 'quarri_list_agent_prompts',
-    description: 'List all agent prompts/system messages',
-    category: 'configuration',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-    _meta: { ui: { resourceUri: 'ui://quarri/prompts-list' } },
-  },
-  {
-    name: 'quarri_update_agent_prompt',
-    description: 'Update an agent prompt/system message',
-    category: 'configuration',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        agent_name: {
-          type: 'string',
-          description: 'Name of the agent to update',
-        },
-        prompt: {
-          type: 'string',
-          description: 'New prompt text',
-        },
-      },
-      required: ['agent_name', 'prompt'],
-    },
-  },
   {
     name: 'quarri_list_rules',
     description: 'List all agent rules for query generation',
