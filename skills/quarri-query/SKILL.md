@@ -30,12 +30,9 @@ Before generating SQL, gather the necessary context:
 
 ### Step 2: Understand the Schema
 
-The Quarri schema follows a star schema pattern:
-- **Fact tables**: Contain numeric measures (revenue, quantity, counts)
-- **Dimension tables**: Contain descriptive attributes (customer name, product category, region)
-- **Bridge table** (`quarri.bridge`): Pre-joined view connecting facts to dimensions
+**CRITICAL**: All queries MUST use `quarri.schema` as the ONLY source table. Do NOT query any other tables directly.
 
-Always prefer querying through `quarri.bridge` or `quarri.schema` for optimal joins.
+The `quarri.schema` view is a pre-joined, denormalized view that contains all the data you need. The schema response shows the columns available in this view.
 
 ### Step 3: Generate SQL
 
@@ -47,7 +44,7 @@ When generating SQL, follow these principles:
 - Add appropriate aggregations (SUM, COUNT, AVG) for measures
 
 **Joins:**
-- Prefer the pre-joined `quarri.bridge` or `quarri.schema` views
+- Prefer the pre-joined `quarri.schema` or `quarri.schema` views
 - If joining manually, use the relationships defined in the schema
 
 **Filters:**
@@ -76,7 +73,7 @@ When generating SQL, follow these principles:
 SELECT
     dimension_column,
     SUM(measure_column) as total_measure
-FROM quarri.bridge
+FROM quarri.schema
 WHERE filter_conditions
 GROUP BY dimension_column
 ORDER BY total_measure DESC
@@ -88,7 +85,7 @@ LIMIT 100;
 SELECT
     DATE_TRUNC('month', date_column) as period,
     SUM(measure_column) as total_measure
-FROM quarri.bridge
+FROM quarri.schema
 WHERE date_column >= DATE '2024-01-01'
 GROUP BY period
 ORDER BY period;
@@ -99,7 +96,7 @@ ORDER BY period;
 SELECT
     dimension_column,
     SUM(measure_column) as total_measure
-FROM quarri.bridge
+FROM quarri.schema
 GROUP BY dimension_column
 ORDER BY total_measure DESC
 LIMIT 10;
@@ -111,7 +108,7 @@ SELECT
     category_column,
     segment_column,
     SUM(measure_column) as total_measure
-FROM quarri.bridge
+FROM quarri.schema
 GROUP BY category_column, segment_column
 ORDER BY category_column, total_measure DESC;
 ```
@@ -137,7 +134,7 @@ When the question is ambiguous:
 SELECT
     region,
     SUM(revenue) as total_revenue
-FROM quarri.bridge
+FROM quarri.schema
 GROUP BY region
 ORDER BY total_revenue DESC;
 ```

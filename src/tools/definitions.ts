@@ -93,14 +93,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   // - /quarri-debug-connector (new skill for connector healing)
   {
     name: 'quarri_execute_sql',
-    description: 'Execute a SQL query against the database. Returns results as JSON.',
+    description: 'Execute a SQL query against the Quarri database. IMPORTANT: All queries MUST use the quarri.schema view as the source table (e.g., SELECT * FROM quarri.schema WHERE ...). Do NOT query other tables directly.',
     category: 'data',
     inputSchema: {
       type: 'object',
       properties: {
         sql: {
           type: 'string',
-          description: 'SQL query to execute (SELECT only)',
+          description: 'SQL query to execute (SELECT only). Must query from quarri.schema view.',
         },
         limit: {
           type: 'integer',
@@ -115,7 +115,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_get_schema',
     description:
-      'Get database schema information (tables, columns, types, relationships)',
+      'Get schema information for the quarri.schema view. Returns available columns and their types. All SQL queries should use quarri.schema as the source table.',
     category: 'data',
     inputSchema: {
       type: 'object',
@@ -127,7 +127,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
         table_filter: {
           type: 'string',
-          description: 'Filter tables by pattern',
+          description: 'Filter columns by pattern',
         },
       },
       required: [],
