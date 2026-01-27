@@ -11,6 +11,12 @@ export interface ToolParameter {
   default?: unknown;
 }
 
+export interface ToolMeta {
+  ui?: {
+    resourceUri: string;
+  };
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;
@@ -20,11 +26,13 @@ export interface ToolDefinition {
     properties: Record<string, ToolParameter>;
     required: string[];
   };
+  _meta?: ToolMeta;
 }
 
 // Map MCP tool names to backend tool names
 // Note: Agent tools have been removed - they are now handled by Claude Code skills
 // See /quarri-query, /quarri-analyze, /quarri-stats, etc.
+// Note: Canvas tools have been removed - replaced by MCP UI resources
 export const TOOL_NAME_MAP: Record<string, string> = {
   // Session tools
   quarri_trial_status: 'trial_status',
@@ -46,12 +54,6 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_delete_rule: 'delete_rule',
   quarri_vectorize_column_values: 'vectorize_column_values',
   quarri_list_searchable_columns: 'list_searchable_columns',
-  // Canvas
-  quarri_list_canvases: 'list_canvases',
-  quarri_get_canvas: 'get_canvas',
-  quarri_create_chart_panel: 'create_chart_panel',
-  quarri_update_chart_panel: 'update_chart_panel',
-  quarri_export_canvas: 'export_canvas',
   // Team
   quarri_list_teams: 'list_teams',
   quarri_get_team_filters: 'get_team_filters',
@@ -108,6 +110,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['sql'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/data-table' } },
   },
   {
     name: 'quarri_get_schema',
@@ -129,6 +132,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/schema-explorer' } },
   },
   {
     name: 'quarri_search_values',
@@ -153,6 +157,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['query'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/search-results' } },
   },
   {
     name: 'quarri_get_metrics',
@@ -169,6 +174,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/metrics-list' } },
   },
   {
     name: 'quarri_create_metric',
@@ -227,6 +233,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['metric_id'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/metric-detail' } },
   },
   {
     name: 'quarri_search_metrics',
@@ -242,6 +249,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['query'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/metrics-list' } },
   },
 
   // ==================== CONFIGURATION TOOLS ====================
@@ -254,6 +262,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/prompts-list' } },
   },
   {
     name: 'quarri_update_agent_prompt',
@@ -283,6 +292,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/rules-list' } },
   },
   {
     name: 'quarri_create_rule',
@@ -369,107 +379,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
-  },
-
-  // ==================== CANVAS TOOLS ====================
-  {
-    name: 'quarri_list_canvases',
-    description: 'List all canvas workspaces',
-    category: 'canvas',
-    inputSchema: {
-      type: 'object',
-      properties: {},
-      required: [],
-    },
-  },
-  {
-    name: 'quarri_get_canvas',
-    description: 'Get a specific canvas with all its panels',
-    category: 'canvas',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        canvas_id: {
-          type: 'integer',
-          description: 'ID of the canvas',
-        },
-      },
-      required: ['canvas_id'],
-    },
-  },
-  {
-    name: 'quarri_create_chart_panel',
-    description: 'Create a new chart panel on a canvas',
-    category: 'canvas',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        canvas_id: {
-          type: 'integer',
-          description: 'ID of the canvas',
-        },
-        title: {
-          type: 'string',
-          description: 'Panel title',
-        },
-        sql_query: {
-          type: 'string',
-          description: 'SQL query for the chart data',
-        },
-        chart_config: {
-          type: 'object',
-          description: 'Plotly chart configuration',
-        },
-      },
-      required: ['canvas_id', 'title', 'sql_query', 'chart_config'],
-    },
-  },
-  {
-    name: 'quarri_update_chart_panel',
-    description: 'Update an existing chart panel',
-    category: 'canvas',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        panel_id: {
-          type: 'integer',
-          description: 'ID of the panel to update',
-        },
-        title: {
-          type: 'string',
-          description: 'New panel title',
-        },
-        sql_query: {
-          type: 'string',
-          description: 'New SQL query',
-        },
-        chart_config: {
-          type: 'object',
-          description: 'New chart configuration',
-        },
-      },
-      required: ['panel_id'],
-    },
-  },
-  {
-    name: 'quarri_export_canvas',
-    description: 'Export a canvas to PDF or image',
-    category: 'canvas',
-    inputSchema: {
-      type: 'object',
-      properties: {
-        canvas_id: {
-          type: 'integer',
-          description: 'ID of the canvas to export',
-        },
-        format: {
-          type: 'string',
-          enum: ['pdf', 'png'],
-          description: 'Export format',
-        },
-      },
-      required: ['canvas_id', 'format'],
-    },
+    _meta: { ui: { resourceUri: 'ui://quarri/columns-list' } },
   },
 
   // ==================== TEAM TOOLS ====================
@@ -482,6 +392,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/teams-list' } },
   },
   {
     name: 'quarri_get_team_filters',
@@ -497,6 +408,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['team_id'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/team-filters' } },
   },
   {
     name: 'quarri_get_team_restrictions',
@@ -512,6 +424,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['team_id'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/team-restrictions' } },
   },
 
   // ==================== EXTRACTION TOOLS ====================
@@ -524,6 +437,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/sources-list' } },
   },
   {
     name: 'quarri_configure_extraction',
@@ -563,6 +477,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['source_name'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/discovered-tables' } },
   },
   {
     name: 'quarri_propose_transformation',
@@ -627,6 +542,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/raw-tables' } },
   },
 
   // ==================== DEBUG TOOLS ====================
@@ -650,6 +566,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/logs-view' } },
   },
   {
     name: 'quarri_query_repl_activity',
@@ -670,6 +587,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/activity-list' } },
   },
   {
     name: 'quarri_read_fly_logs',
@@ -686,6 +604,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/logs-view' } },
   },
 
   // ==================== SESSION TOOLS (new for MCP) ====================
@@ -698,6 +617,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/auth-status' } },
   },
   {
     name: 'quarri_trial_status',
@@ -709,6 +629,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {},
       required: [],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/trial-status' } },
   },
   {
     name: 'quarri_list_databases',
@@ -840,6 +761,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['connector_id'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/code-view' } },
   },
   {
     name: 'quarri_get_connector_logs',
@@ -865,6 +787,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       },
       required: ['connector_id'],
     },
+    _meta: { ui: { resourceUri: 'ui://quarri/logs-view' } },
   },
   {
     name: 'quarri_update_connector_code',

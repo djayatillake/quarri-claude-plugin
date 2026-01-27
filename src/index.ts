@@ -11,6 +11,8 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListResourcesRequestSchema,
+  ReadResourceRequestSchema,
   ErrorCode,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
@@ -25,11 +27,33 @@ import {
   TOOL_DEFINITIONS,
   getBackendToolName,
 } from './tools/definitions.js';
+import {
+  UI_RESOURCES,
+  getToolUIResource,
+  renderDataTable,
+  renderSchemaExplorer,
+  renderSearchResults,
+  renderMetricsList,
+  renderMetricDetail,
+  renderAuthStatus,
+  renderTrialStatus,
+  renderPromptsList,
+  renderRulesList,
+  renderColumnsList,
+  renderTeamsList,
+  renderTeamFilters,
+  renderTeamRestrictions,
+  renderSourcesList,
+  renderTablesList,
+  renderLogsView,
+  renderActivityList,
+  renderCodeView,
+} from './ui/resources.js';
 
 // Initialize API client
 const client = new QuarriApiClient();
 
-// Initialize MCP server
+// Initialize MCP server with resources capability
 const server = new Server(
   {
     name: 'quarri',
@@ -38,6 +62,7 @@ const server = new Server(
   {
     capabilities: {
       tools: {},
+      resources: {},
     },
   }
 );
@@ -79,6 +104,44 @@ After authenticating, restart Claude Code to pick up the credentials.
 }
 
 /**
+ * Handle list resources request
+ */
+server.setRequestHandler(ListResourcesRequestSchema, async () => {
+  return {
+    resources: UI_RESOURCES.map((resource) => ({
+      uri: resource.uri,
+      name: resource.name,
+      description: resource.description,
+      mimeType: resource.mimeType,
+    })),
+  };
+});
+
+/**
+ * Handle read resource request
+ */
+server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
+  const { uri } = request.params;
+  const resource = UI_RESOURCES.find((r) => r.uri === uri);
+
+  if (!resource) {
+    throw new McpError(ErrorCode.InvalidRequest, `Unknown resource: ${uri}`);
+  }
+
+  // Resources are populated dynamically by tool responses
+  // This handler returns an empty template
+  return {
+    contents: [
+      {
+        uri: resource.uri,
+        mimeType: resource.mimeType,
+        text: JSON.stringify({ type: resource.name, data: null }),
+      },
+    ],
+  };
+});
+
+/**
  * Handle list tools request
  */
 server.setRequestHandler(ListToolsRequestSchema, async () => {
@@ -87,6 +150,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
       name: tool.name,
       description: tool.description,
       inputSchema: tool.inputSchema,
+      ...(tool._meta && { _meta: tool._meta }),
     })),
   };
 });
@@ -103,14 +167,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const selected = getSelectedDatabase();
 
     if (!credentials) {
+      const unauthData = {
+        authenticated: false,
+        message: 'Not authenticated. Run: npx @quarri/claude-data-tools auth',
+      };
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              authenticated: false,
-              message: 'Not authenticated. Run: npx @quarri/claude-data-tools auth',
-            }, null, 2),
+            text: JSON.stringify(unauthData, null, 2),
+          },
+          {
+            type: 'resource',
+            resource: {
+              uri: 'ui://quarri/auth-status',
+              mimeType: 'application/vnd.quarri.auth-status+json',
+              text: JSON.stringify(renderAuthStatus({ authenticated: false })),
+            },
           },
         ],
       };
@@ -120,19 +193,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const isExpired = expiresAt < new Date();
     const expiresIn = Math.round((expiresAt.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
 
+    const authData = {
+      authenticated: !isExpired,
+      email: credentials.email,
+      role: credentials.role,
+      databases: credentials.databases.map(d => d.display_name || d.database_name),
+      selectedDatabase: selected,
+      tokenExpires: credentials.expiresAt,
+      expiresInDays: isExpired ? 'EXPIRED' : expiresIn,
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            authenticated: !isExpired,
-            email: credentials.email,
-            role: credentials.role,
-            databases: credentials.databases.map(d => d.display_name || d.database_name),
-            selectedDatabase: selected,
-            tokenExpires: credentials.expiresAt,
-            expiresInDays: isExpired ? 'EXPIRED' : expiresIn,
-          }, null, 2),
+          text: JSON.stringify(authData, null, 2),
+        },
+        {
+          type: 'resource',
+          resource: {
+            uri: 'ui://quarri/auth-status',
+            mimeType: 'application/vnd.quarri.auth-status+json',
+            text: JSON.stringify(renderAuthStatus({
+              authenticated: !isExpired,
+              email: credentials.email,
+              role: credentials.role,
+              databases: credentials.databases.map(d => d.display_name || d.database_name),
+              expiresInDays: isExpired ? 'EXPIRED' : expiresIn,
+            })),
+          },
         },
       ],
     };
@@ -216,36 +305,64 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     const data = result.data;
     if (!data || !data.is_trial) {
+      const nonTrialData = {
+        is_trial: false,
+        message: 'This is not a trial account.',
+        database: data?.display_name || data?.database_name,
+      };
       return {
         content: [
           {
             type: 'text',
-            text: JSON.stringify({
-              is_trial: false,
-              message: 'This is not a trial account.',
-              database: data?.display_name || data?.database_name,
-            }, null, 2),
+            text: JSON.stringify(nonTrialData, null, 2),
+          },
+          {
+            type: 'resource',
+            resource: {
+              uri: 'ui://quarri/trial-status',
+              mimeType: 'application/vnd.quarri.trial-status+json',
+              text: JSON.stringify(renderTrialStatus({
+                is_trial: false,
+                organization: data?.display_name || data?.database_name,
+              })),
+            },
           },
         ],
       };
     }
 
+    const trialData = {
+      is_trial: true,
+      organization: data.display_name,
+      days_remaining: data.days_remaining,
+      expires_at: data.expires_at,
+      data_limit_gb: data.data_limit_gb,
+      signup_type: data.signup_type,
+      upgrade_contact: data.upgrade_contact,
+      message: data.days_remaining && data.days_remaining <= 2
+        ? `⚠️ Your trial expires in ${data.days_remaining} day(s). Contact ${data.upgrade_contact} to upgrade.`
+        : `Trial active with ${data.days_remaining} days remaining.`,
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            is_trial: true,
-            organization: data.display_name,
-            days_remaining: data.days_remaining,
-            expires_at: data.expires_at,
-            data_limit_gb: data.data_limit_gb,
-            signup_type: data.signup_type,
-            upgrade_contact: data.upgrade_contact,
-            message: data.days_remaining && data.days_remaining <= 2
-              ? `⚠️ Your trial expires in ${data.days_remaining} day(s). Contact ${data.upgrade_contact} to upgrade.`
-              : `Trial active with ${data.days_remaining} days remaining.`,
-          }, null, 2),
+          text: JSON.stringify(trialData, null, 2),
+        },
+        {
+          type: 'resource',
+          resource: {
+            uri: 'ui://quarri/trial-status',
+            mimeType: 'application/vnd.quarri.trial-status+json',
+            text: JSON.stringify(renderTrialStatus({
+              is_trial: true,
+              organization: data.display_name,
+              days_remaining: data.days_remaining,
+              expires_at: data.expires_at,
+              data_limit_gb: data.data_limit_gb,
+            })),
+          },
         },
       ],
     };
@@ -301,15 +418,177 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 
-  return {
-    content: [
-      {
-        type: 'text',
-        text: formatToolResponse(name, result),
-      },
-    ],
-  };
+  // Build response with text and optional UI resource
+  const content: Array<{ type: string; text?: string; resource?: { uri: string; mimeType: string; text: string } }> = [
+    {
+      type: 'text',
+      text: formatToolResponse(name, result),
+    },
+  ];
+
+  // Add UI resource if available for this tool
+  const uiResourceContent = buildUIResource(name, result);
+  if (uiResourceContent) {
+    content.push(uiResourceContent);
+  }
+
+  return { content };
 });
+
+/**
+ * Build UI resource for a tool response
+ */
+function buildUIResource(
+  toolName: string,
+  result: Record<string, unknown>
+): { type: string; resource: { uri: string; mimeType: string; text: string } } | null {
+  const uiResource = getToolUIResource(toolName);
+  if (!uiResource) return null;
+
+  let rendered: Record<string, unknown> | null = null;
+
+  switch (toolName) {
+    case 'quarri_execute_sql':
+      if (result.rows && Array.isArray(result.rows)) {
+        const rows = result.rows as Record<string, unknown>[];
+        const columns = (result.columns as string[]) || (rows.length > 0 ? Object.keys(rows[0]) : []);
+        rendered = renderDataTable(rows, columns);
+      }
+      break;
+
+    case 'quarri_get_schema':
+      if (result.tables && Array.isArray(result.tables)) {
+        rendered = renderSchemaExplorer(
+          result.tables as Array<{ name: string; columns: Array<{ name: string; type: string }> }>
+        );
+      }
+      break;
+
+    case 'quarri_search_values':
+      if (result.results && Array.isArray(result.results)) {
+        rendered = renderSearchResults(
+          result.results as Array<{ value: string; column: string; table: string; score?: number }>
+        );
+      }
+      break;
+
+    case 'quarri_get_metrics':
+    case 'quarri_search_metrics':
+      if (result.metrics && Array.isArray(result.metrics)) {
+        rendered = renderMetricsList(
+          result.metrics as Array<{ id: number; name: string; description: string; status: string }>
+        );
+      }
+      break;
+
+    case 'quarri_get_metric_detail':
+      if (result.id) {
+        rendered = renderMetricDetail(result as {
+          id: number;
+          name: string;
+          description: string;
+          sql_template: string;
+          dimensions?: string[];
+          status: string;
+        });
+      }
+      break;
+
+    case 'quarri_list_agent_prompts':
+      if (result.prompts && Array.isArray(result.prompts)) {
+        rendered = renderPromptsList(result.prompts as Array<{ agent_name: string; prompt: string }>);
+      }
+      break;
+
+    case 'quarri_list_rules':
+      if (result.rules && Array.isArray(result.rules)) {
+        rendered = renderRulesList(result.rules as Array<{ id: number; rule_text: string; category?: string }>);
+      }
+      break;
+
+    case 'quarri_list_searchable_columns':
+      if (result.columns && Array.isArray(result.columns)) {
+        rendered = renderColumnsList(
+          result.columns as Array<{ table_name: string; column_name: string; value_count?: number }>
+        );
+      }
+      break;
+
+    case 'quarri_list_teams':
+      if (result.teams && Array.isArray(result.teams)) {
+        rendered = renderTeamsList(result.teams as Array<{ id: number; name: string; member_count?: number }>);
+      }
+      break;
+
+    case 'quarri_get_team_filters':
+      if (result.filters && Array.isArray(result.filters)) {
+        rendered = renderTeamFilters(
+          result.filters as Array<{ table_name: string; filter_expression: string }>
+        );
+      }
+      break;
+
+    case 'quarri_get_team_restrictions':
+      if (result.restrictions && Array.isArray(result.restrictions)) {
+        rendered = renderTeamRestrictions(
+          result.restrictions as Array<{ table_name: string; hidden_columns: string[] }>
+        );
+      }
+      break;
+
+    case 'quarri_list_extraction_sources':
+      if (result.sources && Array.isArray(result.sources)) {
+        rendered = renderSourcesList(
+          result.sources as Array<{ name: string; type: string; status?: string; last_run?: string }>
+        );
+      }
+      break;
+
+    case 'quarri_discover_tables':
+    case 'quarri_list_raw_tables':
+      if (result.tables && Array.isArray(result.tables)) {
+        rendered = renderTablesList(
+          result.tables as Array<{ name: string; row_count?: number; columns?: number }>
+        );
+      }
+      break;
+
+    case 'quarri_read_server_logs':
+    case 'quarri_read_fly_logs':
+    case 'quarri_get_connector_logs':
+      if (result.logs && Array.isArray(result.logs)) {
+        rendered = renderLogsView(
+          result.logs as Array<{ timestamp: string; level: string; message: string }>
+        );
+      }
+      break;
+
+    case 'quarri_query_repl_activity':
+      if (result.activities && Array.isArray(result.activities)) {
+        rendered = renderActivityList(
+          result.activities as Array<{ timestamp: string; action: string; details?: string }>
+        );
+      }
+      break;
+
+    case 'quarri_get_connector_code':
+      if (result.code && typeof result.code === 'string') {
+        rendered = renderCodeView(result.code, (result.language as string) || 'python');
+      }
+      break;
+  }
+
+  if (!rendered) return null;
+
+  return {
+    type: 'resource',
+    resource: {
+      uri: uiResource.uri,
+      mimeType: uiResource.mimeType,
+      text: JSON.stringify(rendered),
+    },
+  };
+}
 
 /**
  * Format error response for better readability
