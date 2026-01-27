@@ -37,6 +37,13 @@ const server = new Server(
   {
     name: 'quarri',
     version: '1.0.0',
+    icons: [
+      {
+        src: 'https://app.quarri.ai/static/quarri_logo.png',
+        mimeType: 'image/png',
+        sizes: ['48x48'],
+      },
+    ],
   },
   {
     capabilities: {
