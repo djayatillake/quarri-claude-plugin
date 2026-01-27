@@ -103,15 +103,12 @@ server.setRequestHandler(ListResourcesRequestSchema, async () => {
 
 server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
   const { uri } = request.params;
-  return {
-    contents: [
-      {
-        uri: uri,
-        mimeType: 'text/plain',
-        text: '',
-      },
-    ],
-  };
+  // No resources are available - throw proper error instead of returning
+  // unsupported format that causes "Unsupported UI resource content format" errors
+  throw new McpError(
+    ErrorCode.InvalidRequest,
+    `Resource not found: ${uri}`
+  );
 });
 
 /**
