@@ -17,15 +17,42 @@ Use `/quarri-query` when users ask data questions like:
 
 ## Workflow
 
-### Step 1: Fetch Context
+### Step 1: Fetch Query Context (REQUIRED)
 
-Before generating SQL, gather the necessary context:
+**ALWAYS call `quarri_get_query_context` first** before generating any SQL. This single call returns all the context you need:
 
 ```
-1. Get database schema using quarri_get_schema
-2. Search for relevant metrics using quarri_search_metrics with the question
-3. Get rules that apply using quarri_list_rules
-4. If the question mentions specific values (names, categories), use quarri_search_values to find exact matches
+quarri_get_query_context({ question: "<user's question>" })
+```
+
+This returns:
+- **Schema**: All columns in `quarri.schema` with types and descriptions
+- **Rules**: Business logic, naming conventions, and query guidelines
+- **Metrics**: Pre-defined calculations (e.g., "Revenue = SUM(sales_amount)")
+- **Searchable columns**: Columns with semantic search enabled
+- **Value matches**: If the question mentions specific values (names, products, etc.), returns exact database matches
+
+**Example response:**
+```json
+{
+  "schema": {
+    "columns": [
+      { "name": "order_date", "type": "DATE", "description": "Date of order" },
+      { "name": "revenue", "type": "DECIMAL", "description": "Order revenue" },
+      { "name": "region", "type": "VARCHAR", "description": "Sales region" }
+    ]
+  },
+  "rules": [
+    { "category": "naming", "text": "Use 'revenue' not 'sales' for monetary amounts" },
+    { "category": "filters", "text": "Always exclude test orders (is_test = false)" }
+  ],
+  "metrics": [
+    { "name": "Total Revenue", "sql": "SUM(revenue)", "dimensions": ["region", "category"] }
+  ],
+  "value_matches": [
+    { "query": "west coast", "matches": ["West", "Pacific Northwest"], "column": "region" }
+  ]
+}
 ```
 
 ### Step 2: Understand the Schema
@@ -127,18 +154,33 @@ When the question is ambiguous:
 **User**: "Show revenue by region"
 
 **Claude's process**:
-1. Fetch schema - find `revenue` measure and `region` dimension
-2. Search metrics - find "Total Revenue" metric definition
-3. Generate SQL:
+
+1. **Call quarri_get_query_context**:
+```
+quarri_get_query_context({ question: "Show revenue by region" })
+```
+
+Response includes:
+- Schema shows `revenue` (DECIMAL) and `region` (VARCHAR) columns
+- Metrics include "Total Revenue" = `SUM(revenue)`
+- Rules say to exclude test orders
+- No specific value matches needed
+
+2. **Generate SQL using the context**:
 ```sql
 SELECT
     region,
     SUM(revenue) as total_revenue
 FROM quarri.schema
+WHERE is_test = false
 GROUP BY region
 ORDER BY total_revenue DESC;
 ```
-4. Execute and display results in a table
+
+3. **Execute and display results**:
+```
+quarri_execute_sql({ sql: "SELECT region, SUM(revenue)..." })
+```
 
 ## Error Handling
 

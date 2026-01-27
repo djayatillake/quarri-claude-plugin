@@ -36,6 +36,8 @@ export interface ToolDefinition {
 export const TOOL_NAME_MAP: Record<string, string> = {
   // Session tools
   quarri_trial_status: 'trial_status',
+  // Query context (bundles schema, rules, metrics, searchable columns)
+  quarri_get_query_context: 'get_query_context',
   // Data tools (primitives)
   quarri_execute_sql: 'execute_sql',
   quarri_get_schema: 'get_schema',
@@ -80,6 +82,32 @@ export const TOOL_NAME_MAP: Record<string, string> = {
 };
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
+  // ==================== QUERY CONTEXT ====================
+  // This is the PRIMARY tool to call before generating any SQL query.
+  // It bundles all the context needed: schema, rules, metrics, and searchable columns.
+  {
+    name: 'quarri_get_query_context',
+    description:
+      'IMPORTANT: Call this FIRST before generating any SQL query. Returns bundled context including: schema (all columns and types in quarri.schema), query rules (business logic and naming conventions), defined metrics (pre-approved calculations), and searchable columns (for semantic value matching). This context is essential for generating accurate queries.',
+    category: 'data',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        question: {
+          type: 'string',
+          description:
+            'The user question to answer. Used to find relevant metrics and perform semantic search for mentioned values.',
+        },
+        include_samples: {
+          type: 'boolean',
+          description: 'Include sample values for columns (default: false)',
+          default: false,
+        },
+      },
+      required: [],
+    },
+  },
+
   // ==================== DATA TOOLS ====================
   // Note: Agent tools have been removed and are now handled by Claude Code skills:
   // - /quarri-query (replaces quarri_query_agent)
