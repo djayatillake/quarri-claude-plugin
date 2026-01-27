@@ -6,7 +6,9 @@ alwaysApply: false
 
 # /quarri-chart - Interactive Chart Generation
 
-Generate data visualizations as interactive Plotly charts using MCP UI resources.
+Generate data visualizations as interactive **Plotly.js** charts using MCP UI resources.
+
+**IMPORTANT**: Always use Plotly.js format. Do NOT generate React components, Recharts, Chart.js, or any other charting library. The MCP UI renderer only supports Plotly.js configuration objects.
 
 ## When to Use
 
@@ -16,19 +18,65 @@ Use `/quarri-chart` when users want visualizations:
 - "Show me a graph of this data"
 - "Chart sales by category"
 
+## Data Size Limits
+
+**CRITICAL**: Charts should contain at most **500 data points**. Large datasets must be handled appropriately:
+
+| Scenario | Solution |
+|----------|----------|
+| Time series with many dates | Aggregate to appropriate granularity (day→week→month→quarter) |
+| Too many categories | Show Top N (10-20) + "Other" bucket |
+| Scatter plot with many points | Sample data or use density/heatmap |
+| Raw transactional data | Always GROUP BY before charting - never chart individual transactions |
+
+### Example: Handling Large Categorical Data
+
+```sql
+-- BAD: Returns potentially thousands of products
+SELECT product_name, SUM(sales) FROM orders GROUP BY product_name
+
+-- GOOD: Top 10 + Other
+WITH ranked AS (
+  SELECT product_name, SUM(sales) as total_sales,
+         ROW_NUMBER() OVER (ORDER BY SUM(sales) DESC) as rn
+  FROM quarri.schema
+  GROUP BY product_name
+)
+SELECT
+  CASE WHEN rn <= 10 THEN product_name ELSE 'Other' END as product_name,
+  SUM(total_sales) as total_sales
+FROM ranked
+GROUP BY CASE WHEN rn <= 10 THEN product_name ELSE 'Other' END
+ORDER BY total_sales DESC
+```
+
+### Example: Handling Long Time Series
+
+```sql
+-- BAD: Daily data for 5 years = 1800+ points
+SELECT order_date, SUM(sales) FROM orders GROUP BY order_date
+
+-- GOOD: Aggregate to months
+SELECT DATE_TRUNC('month', order_date) as month, SUM(sales) as total_sales
+FROM quarri.schema
+GROUP BY DATE_TRUNC('month', order_date)
+ORDER BY month
+```
+
 ## Primary Workflow
 
-### Step 1: Query the data
+### Step 1: Query the data (with appropriate aggregation)
 ```sql
 SELECT category, SUM(sales) as total_sales
-FROM orders
+FROM quarri.schema
 GROUP BY category
 ORDER BY total_sales DESC
+LIMIT 20
 ```
 
 ### Step 2: Return chart as MCP UI resource
 
-After getting the data, construct a Plotly configuration and include it in your response. The chart will be rendered as an interactive UI component.
+After getting the data, construct a **Plotly.js** configuration and include it in your response. The chart will be rendered as an interactive UI component.
 
 **Example Plotly config for bar chart:**
 ```json
@@ -307,3 +355,29 @@ Charts work best when combined with:
 - `/quarri-query`: Get data first, then visualize
 - `/quarri-analyze`: Called as part of full analysis pipeline
 - `/quarri-insights`: Visual support for statistical findings
+
+## Validation Checklist
+
+Before generating a chart, verify:
+
+1. **Library**: Using Plotly.js format (NOT React, Recharts, Chart.js, D3, or others)
+2. **Data points**: ≤ 500 points total (aggregate or sample if more)
+3. **Categories**: ≤ 20 categories (use Top N + Other if more)
+4. **Time granularity**: Appropriate for date range (don't show daily for multi-year)
+5. **Aggregation**: Never chart raw transactions - always GROUP BY
+
+**Output format must be:**
+```json
+{
+  "data": [{ /* Plotly trace */ }],
+  "layout": { /* Plotly layout */ }
+}
+```
+
+**NOT:**
+```jsx
+// WRONG - Do not generate React components
+<BarChart data={data}>
+  <Bar dataKey="value" />
+</BarChart>
+```
