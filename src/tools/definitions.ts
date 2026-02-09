@@ -70,9 +70,15 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_execute_ddl: 'execute_ddl',
   quarri_execute_dml: 'execute_dml',
   quarri_query_model_data: 'query_model_data',
-  // Staging/Silver Model
+  // Staging/Silver Pipeline (metadata-aware)
   quarri_list_staging_tables: 'list_staging_tables',
   quarri_introspect_table: 'introspect_table',
+  quarri_execute_staging_view: 'execute_staging_view',
+  quarri_execute_silver_view: 'execute_silver_view',
+  quarri_register_transformation: 'register_transformation',
+  quarri_get_staging_lineage: 'get_staging_lineage',
+  quarri_refresh_schema: 'refresh_schema',
+  quarri_save_model_plan: 'save_model_plan',
   // Relationship Management
   quarri_detect_relationships: 'detect_relationships',
   quarri_set_relationship: 'set_relationship',
@@ -556,7 +562,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_ddl',
     description:
-      'Execute a DDL statement (CREATE, ALTER, DROP) against staging, silver, or main schemas. One statement per call. Admin only. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema. Recommended workflow: 1) Make DDL/DML changes, 2) Use quarri_detect_relationships to find FK patterns, 3) Use quarri_set_relationship to confirm/fix, 4) Use quarri_generate_quarri_schema to regenerate USS views.',
+      'Execute a DDL statement (CREATE, ALTER, DROP) against staging, silver, or main schemas. One statement per call. Admin only. For creating staging/silver views, prefer execute_staging_view or execute_silver_view which also save metadata. Use execute_ddl for reference tables (CREATE TABLE), ALTER TABLE, DROP operations. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema.',
     category: 'schema_management',
     inputSchema: {
       type: 'object',
@@ -662,6 +668,173 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['table_name'],
+    },
+  },
+
+  // ==================== STAGING/SILVER PIPELINE (metadata-aware) ====================
+  {
+    name: 'quarri_execute_staging_view',
+    description:
+      'Create a staging view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage.',
+    category: 'staging',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: {
+          type: 'string',
+          description: 'CREATE VIEW SQL for the staging view',
+        },
+        source_table: {
+          type: 'string',
+          description: 'Source table name (e.g. "raw_orders")',
+        },
+        target_view: {
+          type: 'string',
+          description: 'Target view name (e.g. "staging.stg_orders")',
+        },
+        source_schema: {
+          type: 'string',
+          description: 'Source schema (default: raw)',
+        },
+        rationale: {
+          type: 'string',
+          description: 'Why this transformation was made',
+        },
+        field_metadata: {
+          type: 'object',
+          description: 'Column mappings and other metadata',
+        },
+      },
+      required: ['sql'],
+    },
+  },
+  {
+    name: 'quarri_execute_silver_view',
+    description:
+      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema.',
+    category: 'silver',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: {
+          type: 'string',
+          description: 'CREATE VIEW SQL for the silver/main view',
+        },
+        source_table: {
+          type: 'string',
+          description: 'Source table for lineage (e.g. "staging.stg_tickets")',
+        },
+        target_view: {
+          type: 'string',
+          description: 'Target view for lineage (e.g. "silver.dim_products" or "main.fact_sales")',
+        },
+        source_schema: {
+          type: 'string',
+          description: 'Source schema (default: staging)',
+        },
+        target_schema: {
+          type: 'string',
+          description: 'Target schema (default: silver)',
+        },
+        rationale: {
+          type: 'string',
+          description: 'Why this transformation was made',
+        },
+        field_metadata: {
+          type: 'object',
+          description: 'Column mappings and other metadata',
+        },
+      },
+      required: ['sql'],
+    },
+  },
+  {
+    name: 'quarri_register_transformation',
+    description:
+      'Register a transformation in the metadata pipeline without creating views. Use after execute_ddl to retroactively add lineage tracking. Pure metadata operation — no DDL is executed.',
+    category: 'staging',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_schema: {
+          type: 'string',
+          description: 'Source schema (e.g. "raw")',
+        },
+        source_table: {
+          type: 'string',
+          description: 'Source table name',
+        },
+        target_schema: {
+          type: 'string',
+          description: 'Target schema (e.g. "staging" or "silver")',
+        },
+        target_view: {
+          type: 'string',
+          description: 'Target view name',
+        },
+        transformation_type: {
+          type: 'string',
+          description: 'Type: "staging" or "silver"',
+          enum: ['staging', 'silver'],
+        },
+        sql_definition: {
+          type: 'string',
+          description: 'The SQL CREATE VIEW statement',
+        },
+        rationale: {
+          type: 'string',
+          description: 'Why this transformation was made',
+        },
+        field_metadata: {
+          type: 'object',
+          description: 'Column mappings and other metadata',
+        },
+      },
+      required: ['source_schema', 'source_table', 'target_schema', 'target_view', 'transformation_type'],
+    },
+  },
+  {
+    name: 'quarri_get_staging_lineage',
+    description:
+      'Get raw->staging->silver lineage. Shows what transformations exist and their source/target relationships.',
+    category: 'staging',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        transformation_type: {
+          type: 'string',
+          description: 'Filter by type: "staging", "silver", or "all" (default: "all")',
+          enum: ['staging', 'silver', 'all'],
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_refresh_schema',
+    description:
+      'Refresh Postgres cache from MotherDuck so web app sees current tables/columns. Call after DDL changes or generate_quarri_schema.',
+    category: 'schema_management',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_save_model_plan',
+    description:
+      'Save a dimensional model plan to Postgres so the web app can display it. Saves primary keys, table types (fact/dimension), and relationships.',
+    category: 'silver',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        model_plan: {
+          type: 'object',
+          description: 'Model plan with facts, dimensions, and relationships arrays',
+        },
+      },
+      required: ['model_plan'],
     },
   },
 
