@@ -48,8 +48,8 @@ export function loadCredentials(): StoredCredentials | null {
     if (credentials.expiresAt) {
       const expiresAt = new Date(credentials.expiresAt);
       if (expiresAt < new Date()) {
-        // Token expired, remove credentials
-        clearCredentials();
+        // Token expired — return null but keep credentials file
+        // so loadExpiredEmail() can read the email for re-auth
         return null;
       }
     }
@@ -57,6 +57,55 @@ export function loadCredentials(): StoredCredentials | null {
     return credentials;
   } catch (error) {
     console.error('Failed to load credentials:', error);
+    return null;
+  }
+}
+
+/**
+ * Load email from expired credentials for re-authentication.
+ * Returns the email if credentials exist but are expired, null otherwise.
+ */
+export function loadExpiredEmail(): string | null {
+  try {
+    if (!fs.existsSync(CREDENTIALS_FILE)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(CREDENTIALS_FILE, 'utf-8');
+    const credentials = JSON.parse(content) as StoredCredentials;
+
+    if (credentials.expiresAt) {
+      const expiresAt = new Date(credentials.expiresAt);
+      if (expiresAt < new Date()) {
+        return credentials.email || null;
+      }
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Check how many minutes until token expires. Returns null if no credentials.
+ */
+export function getTokenExpiryMinutes(): number | null {
+  try {
+    if (!fs.existsSync(CREDENTIALS_FILE)) {
+      return null;
+    }
+
+    const content = fs.readFileSync(CREDENTIALS_FILE, 'utf-8');
+    const credentials = JSON.parse(content) as StoredCredentials;
+
+    if (credentials.expiresAt) {
+      const expiresAt = new Date(credentials.expiresAt);
+      return Math.round((expiresAt.getTime() - Date.now()) / (1000 * 60));
+    }
+
+    return null;
+  } catch {
     return null;
   }
 }

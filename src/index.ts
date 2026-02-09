@@ -20,8 +20,11 @@ import {
 import { QuarriApiClient } from './api/client.js';
 import {
   loadCredentials,
+  loadExpiredEmail,
+  getTokenExpiryMinutes,
   getSelectedDatabase,
   setSelectedDatabase,
+  saveCredentials,
 } from './auth/token-store.js';
 import {
   TOOL_DEFINITIONS,
@@ -80,6 +83,15 @@ async function ensureAuthenticated(): Promise<boolean> {
  * Generate authentication instructions for unauthenticated users
  */
 function getAuthInstructions(): string {
+  // Check if this is an expired session (vs never authenticated)
+  const expiredEmail = loadExpiredEmail();
+
+  if (expiredEmail) {
+    return `Your Quarri session has expired. Use quarri_request_reauth to re-authenticate without leaving Claude Code.
+
+Alternatively, run in terminal: npx @quarri/claude-data-tools auth`;
+  }
+
   return `
 Not authenticated with Quarri.
 
@@ -182,6 +194,106 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         {
           type: 'text',
           text: JSON.stringify(authData, null, 2),
+        },
+      ],
+    };
+  }
+
+  // Handle re-authentication tools before auth check (they work when expired)
+  if (name === 'quarri_request_reauth') {
+    const email = (args as { email?: string }).email || loadExpiredEmail();
+
+    if (!email) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'No email found. Please provide an email parameter, or run: npx @quarri/claude-data-tools auth',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const result = await client.requestVerificationCode(email);
+    if (!result.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Failed to send verification code: ${result.error}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            email,
+            message: `Verification code sent to ${email}. Ask the user for the 6-digit code, then call quarri_complete_reauth with the email and code.`,
+          }, null, 2),
+        },
+      ],
+    };
+  }
+
+  if (name === 'quarri_complete_reauth') {
+    const { email, code } = args as { email: string; code: string };
+
+    if (!email || !code) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: 'Both email and code are required.',
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    const result = await client.verifyCode(email, code);
+    if (!result.success) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: `Re-authentication failed: ${result.error}`,
+          },
+        ],
+        isError: true,
+      };
+    }
+
+    // Save new credentials
+    if (result.token) {
+      saveCredentials({
+        token: result.token,
+        email: result.user?.email || email,
+        role: result.user?.role || 'admin',
+        databases: result.databases || [],
+        expiresAt: result.expiresAt || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      });
+      client.setToken(result.token);
+    }
+
+    return {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            success: true,
+            email: result.user?.email || email,
+            role: result.user?.role,
+            databases: result.databases?.map(d => d.display_name || d.database_name),
+            expiresAt: result.expiresAt,
+            message: 'Re-authentication successful. You can now retry the original tool call.',
+          }, null, 2),
         },
       ],
     };
@@ -340,6 +452,23 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     getSelectedDatabase() ?? undefined
   );
 
+  // Handle TOKEN_EXPIRED from server-side 401
+  if (!result.success && result.error === 'TOKEN_EXPIRED') {
+    const expiredEmail = loadExpiredEmail();
+    const hint = expiredEmail
+      ? `Use quarri_request_reauth to re-authenticate as ${expiredEmail}.`
+      : 'Use quarri_request_reauth to re-authenticate.';
+    return {
+      content: [
+        {
+          type: 'text',
+          text: `Your Quarri session has expired. ${hint}`,
+        },
+      ],
+      isError: true,
+    };
+  }
+
   // Format response based on tool type
   if (!result.success) {
     return {
@@ -353,11 +482,18 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     };
   }
 
+  // Check for proactive expiry warning
+  let expiryWarning = '';
+  const expiryMinutes = getTokenExpiryMinutes();
+  if (expiryMinutes !== null && expiryMinutes > 0 && expiryMinutes <= 120) {
+    expiryWarning = `\n\n⚠️ Your Quarri session expires in ${expiryMinutes} minutes. Use quarri_request_reauth to renew.`;
+  }
+
   // Build response with text and optional UI resource
   const content: Array<{ type: string; text?: string; resource?: { uri: string; mimeType: string; text: string } }> = [
     {
       type: 'text',
-      text: formatToolResponse(name, result),
+      text: formatToolResponse(name, result) + expiryWarning,
     },
   ];
 

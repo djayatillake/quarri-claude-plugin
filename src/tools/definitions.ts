@@ -66,6 +66,17 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_upload_csv: 'upload_csv',
   quarri_generate_quarri_schema: 'generate_quarri_schema',
   quarri_list_raw_tables: 'list_raw_tables',
+  // Direct Schema Management
+  quarri_execute_ddl: 'execute_ddl',
+  quarri_execute_dml: 'execute_dml',
+  quarri_query_model_data: 'query_model_data',
+  // Staging/Silver Model
+  quarri_list_staging_tables: 'list_staging_tables',
+  quarri_introspect_table: 'introspect_table',
+  // Relationship Management
+  quarri_detect_relationships: 'detect_relationships',
+  quarri_set_relationship: 'set_relationship',
+  quarri_get_relationships: 'get_relationships',
   // Debug
   quarri_read_server_logs: 'read_server_logs',
   quarri_query_repl_activity: 'query_repl_activity',
@@ -541,6 +552,193 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     _meta: { ui: { resourceUri: 'ui://quarri/raw-tables' } },
   },
 
+  // ==================== DIRECT SCHEMA MANAGEMENT TOOLS ====================
+  {
+    name: 'quarri_execute_ddl',
+    description:
+      'Execute a DDL statement (CREATE, ALTER, DROP) against staging, silver, or main schemas. One statement per call. Admin only. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema. Recommended workflow: 1) Make DDL/DML changes, 2) Use quarri_detect_relationships to find FK patterns, 3) Use quarri_set_relationship to confirm/fix, 4) Use quarri_generate_quarri_schema to regenerate USS views.',
+    category: 'schema_management',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: {
+          type: 'string',
+          description:
+            'DDL statement (CREATE TABLE/VIEW, ALTER TABLE/VIEW, DROP TABLE/VIEW)',
+        },
+        description: {
+          type: 'string',
+          description: 'Audit description of what this DDL does',
+        },
+      },
+      required: ['sql'],
+    },
+  },
+  {
+    name: 'quarri_execute_dml',
+    description:
+      'Execute a DML statement (INSERT, UPDATE, DELETE) against staging, silver, or main schemas. For populating reference tables, fixing data, etc. Admin only. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema.',
+    category: 'schema_management',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: {
+          type: 'string',
+          description: 'DML statement (INSERT INTO, UPDATE, DELETE FROM)',
+        },
+        description: {
+          type: 'string',
+          description: 'Audit description of what this DML does',
+        },
+      },
+      required: ['sql'],
+    },
+  },
+  {
+    name: 'quarri_query_model_data',
+    description:
+      'Execute a SELECT query against any schema (staging, silver, main, raw). Unlike quarri_execute_sql (which uses quarri.schema), this queries underlying tables directly. Use for schema management work: inspecting staging data, verifying views, checking reference tables.',
+    category: 'schema_management',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sql: {
+          type: 'string',
+          description:
+            'SELECT query to execute against staging/silver/main/raw tables',
+        },
+        limit: {
+          type: 'integer',
+          description: 'Maximum rows to return (default 100)',
+          default: 100,
+        },
+      },
+      required: ['sql'],
+    },
+    _meta: { ui: { resourceUri: 'ui://quarri/data-table' } },
+  },
+
+  // ==================== STAGING/SILVER MODEL TOOLS ====================
+  {
+    name: 'quarri_list_staging_tables',
+    description:
+      'List available staging tables with their introspection metadata (row counts, columns, PII detection status)',
+    category: 'staging',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        schema_name: {
+          type: 'string',
+          description: 'Schema to list tables from (default: staging)',
+        },
+        include_introspection: {
+          type: 'boolean',
+          description:
+            'Include cached introspection metadata if available (default: true)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_introspect_table',
+    description:
+      'Deep column analysis of a specific table. Returns: column statistics (cardinality, nulls, distinct values), PII detection results, primary key candidates with confidence scores, type casting recommendations, and sample values. Use before creating staging views or reference tables.',
+    category: 'staging',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        schema_name: {
+          type: 'string',
+          description: 'Schema containing the table (default: raw)',
+        },
+        table_name: {
+          type: 'string',
+          description: 'Table name to introspect',
+        },
+        force_refresh: {
+          type: 'boolean',
+          description: 'Bypass cache and re-run introspection (default: false)',
+        },
+      },
+      required: ['table_name'],
+    },
+  },
+
+  // ==================== RELATIONSHIP MANAGEMENT TOOLS ====================
+  {
+    name: 'quarri_detect_relationships',
+    description:
+      'Analyze tables and detect FK relationships using column naming patterns, data validation, and cardinality analysis. Returns proposed relationships with confidence scores.',
+    category: 'relationships',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        schema_name: {
+          type: 'string',
+          description: 'Schema to analyze (default: silver)',
+        },
+        tables: {
+          type: 'array',
+          items: { type: 'string' },
+          description:
+            'Specific tables to analyze (optional - defaults to all tables in schema)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_set_relationship',
+    description:
+      'Set a foreign key relationship between two tables. Stored in metadata for USS view generation.',
+    category: 'relationships',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        from_table: {
+          type: 'string',
+          description: 'Source table (the one with FK)',
+        },
+        from_column: {
+          type: 'string',
+          description: 'FK column in source table',
+        },
+        to_table: {
+          type: 'string',
+          description: 'Target table (the one with PK)',
+        },
+        to_column: {
+          type: 'string',
+          description: 'PK column in target table',
+        },
+        relationship_type: {
+          type: 'string',
+          enum: ['many-to-one', 'one-to-one'],
+          description: 'Type of relationship (default: many-to-one)',
+        },
+      },
+      required: ['from_table', 'from_column', 'to_table', 'to_column'],
+    },
+  },
+  {
+    name: 'quarri_get_relationships',
+    description:
+      'Get current relationships stored in metadata. Returns relationships as a list and generates a Mermaid ERD diagram.',
+    category: 'relationships',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        format: {
+          type: 'string',
+          enum: ['list', 'mermaid', 'both'],
+          description: 'Output format (default: both)',
+        },
+      },
+      required: [],
+    },
+  },
+
   // ==================== DEBUG TOOLS ====================
   {
     name: 'quarri_read_server_logs',
@@ -601,6 +799,45 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       required: [],
     },
     _meta: { ui: { resourceUri: 'ui://quarri/logs-view' } },
+  },
+
+  // ==================== RE-AUTHENTICATION TOOLS ====================
+  {
+    name: 'quarri_request_reauth',
+    description:
+      'Request a verification code for re-authentication when your Quarri session has expired. Sends a 6-digit code to the email associated with the expired session. After calling this, ask the user for the code and use quarri_complete_reauth to finish.',
+    category: 'session',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description:
+            'Email address to send verification code to. Optional — auto-detected from expired credentials if available.',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_complete_reauth',
+    description:
+      'Complete re-authentication with the verification code from the user\'s email. Saves new credentials and restores the session.',
+    category: 'session',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        email: {
+          type: 'string',
+          description: 'Email address used for re-authentication',
+        },
+        code: {
+          type: 'string',
+          description: '6-digit verification code from email',
+        },
+      },
+      required: ['email', 'code'],
+    },
   },
 
   // ==================== SESSION TOOLS (new for MCP) ====================

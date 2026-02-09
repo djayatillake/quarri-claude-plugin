@@ -107,6 +107,12 @@ export class QuarriApiClient {
       const data = await response.json() as T & { error?: string };
 
       if (!response.ok) {
+        if (response.status === 401) {
+          return {
+            success: false,
+            error: 'TOKEN_EXPIRED',
+          };
+        }
         return {
           success: false,
           error: data.error || `HTTP ${response.status}: ${response.statusText}`,
