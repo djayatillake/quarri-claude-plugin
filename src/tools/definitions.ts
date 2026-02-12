@@ -94,6 +94,14 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_get_connector_code: 'get_connector_code',
   quarri_get_connector_logs: 'get_connector_logs',
   quarri_update_connector_code: 'update_connector_code',
+  // Skills (procedural knowledge)
+  quarri_create_skill: 'create_skill',
+  quarri_search_skills: 'search_skills',
+  quarri_list_skills: 'list_skills',
+  quarri_get_skill: 'get_skill',
+  quarri_update_skill: 'update_skill',
+  quarri_delete_skill: 'delete_skill',
+  quarri_record_skill_usage: 'record_skill_usage',
 };
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -1220,6 +1228,178 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['connector_id', 'pipeline_code', 'change_summary'],
+    },
+  },
+
+  // ==================== SKILLS TOOLS ====================
+  {
+    name: 'quarri_create_skill',
+    description:
+      'Save a skill (procedural knowledge) after completing a complex workflow. Call this after successfully completing a multi-step task — setting up data pipelines, debugging connectors, building dimensional models, custom analysis patterns. The skill captures the procedure so future sessions can replicate it.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_name: {
+          type: 'string',
+          description: 'Short, descriptive name (e.g., "Stripe staging-to-silver pipeline")',
+        },
+        category: {
+          type: 'string',
+          description: 'Skill category',
+          enum: ['pipeline', 'analysis', 'modeling', 'debugging', 'extraction', 'general'],
+        },
+        description: {
+          type: 'string',
+          description: 'Short summary of what this skill does (1-2 sentences)',
+        },
+        steps: {
+          type: 'string',
+          description:
+            'Markdown procedure — the step-by-step instructions to replicate this workflow',
+        },
+        prerequisites: {
+          type: 'string',
+          description:
+            'What must be true before starting (e.g., "Raw Stripe tables must exist in staging")',
+        },
+        example_context: {
+          type: 'string',
+          description:
+            'When to use this skill (e.g., "When a customer asks to set up Stripe data")',
+        },
+        tags: {
+          type: 'array',
+          description: 'Discovery tags (e.g., ["stripe", "staging", "silver"])',
+          items: { type: 'string' },
+        },
+        related_tools: {
+          type: 'array',
+          description:
+            'MCP tool names used in this skill (e.g., ["execute_staging_view", "execute_silver_view"])',
+          items: { type: 'string' },
+        },
+      },
+      required: ['skill_name', 'category', 'description', 'steps'],
+    },
+  },
+  {
+    name: 'quarri_search_skills',
+    description:
+      'Search for relevant skills by text query and/or tags. Use when starting a complex task to check if a saved procedure exists.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'Search text (matched against name, description, steps, and tags)',
+        },
+        category: {
+          type: 'string',
+          description: 'Optional category filter',
+          enum: ['pipeline', 'analysis', 'modeling', 'debugging', 'extraction', 'general'],
+        },
+        tags: {
+          type: 'array',
+          description: 'Optional tag filter (matches any overlap)',
+          items: { type: 'string' },
+        },
+      },
+      required: ['query'],
+    },
+  },
+  {
+    name: 'quarri_list_skills',
+    description: 'List all saved skills for this database, optionally filtered by category.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        category: {
+          type: 'string',
+          description: 'Optional category filter',
+          enum: ['pipeline', 'analysis', 'modeling', 'debugging', 'extraction', 'general'],
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_get_skill',
+    description:
+      'Get full skill details including step-by-step procedure. Use after search/list to retrieve the complete skill.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill',
+        },
+        skill_name: {
+          type: 'string',
+          description: 'Name of the skill (alternative to skill_id)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_update_skill',
+    description:
+      "Update a skill's content or metadata. Use to refine steps, fix errors, or update tags.",
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill to update',
+        },
+        updates: {
+          type: 'object',
+          description:
+            'Fields to update. Allowed: skill_name, category, description, steps, prerequisites, example_context, tags, related_tools',
+        },
+      },
+      required: ['skill_id', 'updates'],
+    },
+  },
+  {
+    name: 'quarri_delete_skill',
+    description:
+      'Deactivate a skill (soft delete). The skill will no longer appear in search or list results.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill to delete',
+        },
+      },
+      required: ['skill_id'],
+    },
+  },
+  {
+    name: 'quarri_record_skill_usage',
+    description:
+      'Record that a skill was followed, and whether it led to success. Call after using a skill to complete a task.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill that was used',
+        },
+        success: {
+          type: 'boolean',
+          description: 'Whether following the skill led to a successful outcome',
+        },
+      },
+      required: ['skill_id', 'success'],
     },
   },
 ];
