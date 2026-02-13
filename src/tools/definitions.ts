@@ -94,6 +94,11 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_get_connector_code: 'get_connector_code',
   quarri_get_connector_logs: 'get_connector_logs',
   quarri_update_connector_code: 'update_connector_code',
+  // Environment management
+  quarri_create_environment: 'create_environment',
+  quarri_list_environments: 'list_environments',
+  quarri_delete_environment: 'delete_environment',
+  quarri_promote_environment: 'promote_environment',
   // Skills (procedural knowledge)
   quarri_create_skill: 'create_skill',
   quarri_search_skills: 'search_skills',
@@ -125,6 +130,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'boolean',
           description: 'Include sample values for columns (default: false)',
           default: false,
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Use for dev/feature environments to query dev_quarri.schema instead of quarri.schema.',
         },
       },
       required: [],
@@ -158,6 +168,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           description: 'Maximum rows to return (default 100)',
           default: 100,
         },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). When set, auto-resolves the correct quarri schema name.',
+        },
       },
       required: ['sql'],
     },
@@ -179,6 +194,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         table_filter: {
           type: 'string',
           description: 'Filter columns by pattern',
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). When set, returns schema for the dev quarri views.',
         },
       },
       required: [],
@@ -550,6 +570,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           items: { type: 'string' },
           description: 'List of table names to include',
         },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Generates quarri schema in the environment-specific schemas.',
+        },
       },
       required: [],
     },
@@ -584,6 +609,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'string',
           description: 'Audit description of what this DDL does',
         },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Allows writing to environment-specific schemas.',
+        },
       },
       required: ['sql'],
     },
@@ -603,6 +633,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         description: {
           type: 'string',
           description: 'Audit description of what this DML does',
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Allows writing to environment-specific schemas.',
         },
       },
       required: ['sql'],
@@ -625,6 +660,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'integer',
           description: 'Maximum rows to return (default 100)',
           default: 100,
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Allows querying environment-specific schemas.',
         },
       },
       required: ['sql'],
@@ -712,6 +752,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'object',
           description: 'Column mappings and other metadata',
         },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Creates view in environment-specific staging schema.',
+        },
       },
       required: ['sql'],
     },
@@ -751,6 +796,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         field_metadata: {
           type: 'object',
           description: 'Column mappings and other metadata',
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Creates view in environment-specific main schema.',
         },
       },
       required: ['sql'],
@@ -797,6 +847,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'object',
           description: 'Column mappings and other metadata',
         },
+        environment: {
+          type: 'string',
+          description: 'Target environment (default: "production").',
+        },
       },
       required: ['source_schema', 'source_table', 'target_schema', 'target_view', 'transformation_type'],
     },
@@ -813,6 +867,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'string',
           description: 'Filter by type: "staging", "silver", or "all" (default: "all")',
           enum: ['staging', 'silver', 'all'],
+        },
+        environment: {
+          type: 'string',
+          description: 'Target environment (default: "production"). Filters lineage by environment.',
         },
       },
       required: [],
@@ -841,6 +899,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'object',
           description: 'Model plan with facts, dimensions, and relationships arrays',
         },
+        environment: {
+          type: 'string',
+          description: 'Target environment (default: "production").',
+        },
       },
       required: ['model_plan'],
     },
@@ -864,6 +926,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           items: { type: 'string' },
           description:
             'Specific tables to analyze (optional - defaults to all tables in schema)',
+        },
+        environment: {
+          type: 'string',
+          description:
+            'Target environment (default: "production"). Analyzes environment-specific main schema.',
         },
       },
       required: [],
@@ -898,6 +965,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           enum: ['many-to-one', 'one-to-one'],
           description: 'Type of relationship (default: many-to-one)',
         },
+        environment: {
+          type: 'string',
+          description: 'Target environment (default: "production").',
+        },
       },
       required: ['from_table', 'from_column', 'to_table', 'to_column'],
     },
@@ -914,6 +985,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'string',
           enum: ['list', 'mermaid', 'both'],
           description: 'Output format (default: both)',
+        },
+        environment: {
+          type: 'string',
+          description: 'Target environment (default: "production"). Filters relationships by environment.',
         },
       },
       required: [],
@@ -1400,6 +1475,72 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['skill_id', 'success'],
+    },
+  },
+
+  // ==================== ENVIRONMENT MANAGEMENT ====================
+  {
+    name: 'quarri_create_environment',
+    description:
+      'Create a new development environment with isolated schemas. Creates 3 MotherDuck schemas (e.g. dev_staging, dev_main, dev_quarri) for building and testing data model changes without affecting production. Raw data is shared across all environments.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        environment_name: {
+          type: 'string',
+          description:
+            'Environment name (e.g. "dev", "feature-x"). Will be sanitized (hyphens to underscores). Cannot be "production".',
+        },
+        display_name: {
+          type: 'string',
+          description: 'Human-friendly display name (optional, defaults to environment_name)',
+        },
+      },
+      required: ['environment_name'],
+    },
+  },
+  {
+    name: 'quarri_list_environments',
+    description:
+      'List all environments for the current database. Always includes the virtual "production" entry plus any dev/feature environments.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_delete_environment',
+    description:
+      'Delete a development environment. Drops all 3 MotherDuck schemas (CASCADE) and removes metadata. Cannot delete production.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        environment_name: {
+          type: 'string',
+          description: 'Environment to delete (cannot be "production")',
+        },
+      },
+      required: ['environment_name'],
+    },
+  },
+  {
+    name: 'quarri_promote_environment',
+    description:
+      'Promote a development environment to production. Rewrites SQL schema references, executes views in production schemas (staging first, then main), copies relationships/primary_keys, regenerates quarri.schema, and refreshes caches.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        environment_name: {
+          type: 'string',
+          description: 'Environment to promote (cannot be "production")',
+        },
+      },
+      required: ['environment_name'],
     },
   },
 ];
