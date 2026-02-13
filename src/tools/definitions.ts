@@ -1482,7 +1482,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_create_environment',
     description:
-      'Create a new development environment with isolated schemas. Creates 3 MotherDuck schemas (e.g. dev_staging, dev_main, dev_quarri) for building and testing data model changes without affecting production. Raw data is shared across all environments.',
+      'Create a new development environment with isolated schemas. Creates 3 MotherDuck schemas (e.g. dev_staging, dev_main, dev_quarri) and copies all production staging/silver views, relationships, and primary keys so you start with a working copy of prod. Raw data is shared across all environments.',
     category: 'environments',
     inputSchema: {
       type: 'object',
