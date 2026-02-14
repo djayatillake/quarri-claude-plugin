@@ -597,7 +597,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_ddl',
     description:
-      'Execute a DDL statement (CREATE, ALTER, DROP) against staging, silver, or main schemas. One statement per call. Admin only. For creating staging/silver views, prefer execute_staging_view or execute_silver_view which also save metadata. Use execute_ddl for reference tables (CREATE TABLE), ALTER TABLE, DROP operations. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema.',
+      'Execute a DDL statement (CREATE, ALTER, DROP) against staging, silver, or main schemas. REQUIRES a development environment — production is protected and can only be modified via promote_environment. One statement per call. Admin only. For creating staging/silver views, prefer execute_staging_view or execute_silver_view which also save metadata. Use execute_ddl for reference tables (CREATE TABLE), ALTER TABLE, DROP operations.',
     category: 'schema_management',
     inputSchema: {
       type: 'object',
@@ -614,16 +614,16 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         environment: {
           type: 'string',
           description:
-            'Target environment (default: "production"). Allows writing to environment-specific schemas.',
+            'REQUIRED. Target development environment name (e.g. "dev"). Production is protected — use promote_environment to deploy changes.',
         },
       },
-      required: ['sql'],
+      required: ['sql', 'environment'],
     },
   },
   {
     name: 'quarri_execute_dml',
     description:
-      'Execute a DML statement (INSERT, UPDATE, DELETE) against staging, silver, or main schemas. For populating reference tables, fixing data, etc. Admin only. Allowed targets: staging, silver, main. Blocked: raw, quarri, information_schema.',
+      'Execute a DML statement (INSERT, UPDATE, DELETE) against staging, silver, or main schemas. REQUIRES a development environment — production is protected and can only be modified via promote_environment. For populating reference tables, fixing data, etc. Admin only.',
     category: 'schema_management',
     inputSchema: {
       type: 'object',
@@ -639,10 +639,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         environment: {
           type: 'string',
           description:
-            'Target environment (default: "production"). Allows writing to environment-specific schemas.',
+            'REQUIRED. Target development environment name (e.g. "dev"). Production is protected — use promote_environment to deploy changes.',
         },
       },
-      required: ['sql'],
+      required: ['sql', 'environment'],
     },
   },
   {
@@ -725,7 +725,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_staging_view',
     description:
-      'Create a staging view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage. Always write SQL using production schema names (staging.X) — when environment is set, schema references are auto-rewritten to target the correct environment schemas.',
+      'Create a staging view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage. Always write SQL using production schema names (staging.X, silver.X, main.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. staging.X → dev_staging.X).',
     category: 'staging',
     inputSchema: {
       type: 'object',
@@ -757,7 +757,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         environment: {
           type: 'string',
           description:
-            'Target environment (default: "production"). Creates view in environment-specific staging schema.',
+            'REQUIRED. Target development environment name (e.g. "dev"). Production is protected — use promote_environment to deploy changes.',
         },
       },
       required: ['sql'],
@@ -766,7 +766,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_silver_view',
     description:
-      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema. Always write SQL using production schema names (main.X, staging.X) — when environment is set, schema references are auto-rewritten to target the correct environment schemas.',
+      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema. Always write SQL using production schema names (silver.X, main.X, staging.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. silver.X → dev_silver.X, main.X → dev_main.X).',
     category: 'silver',
     inputSchema: {
       type: 'object',
@@ -802,7 +802,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         environment: {
           type: 'string',
           description:
-            'Target environment (default: "production"). Creates view in environment-specific main schema.',
+            'REQUIRED. Target development environment name (e.g. "dev"). Production is protected — use promote_environment to deploy changes.',
         },
       },
       required: ['sql'],
