@@ -99,6 +99,8 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_list_environments: 'list_environments',
   quarri_delete_environment: 'delete_environment',
   quarri_promote_environment: 'promote_environment',
+  quarri_rollback_production: 'rollback_production',
+  quarri_list_production_snapshots: 'list_production_snapshots',
   // Skills (procedural knowledge)
   quarri_create_skill: 'create_skill',
   quarri_search_skills: 'search_skills',
@@ -723,7 +725,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_staging_view',
     description:
-      'Create a staging view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage.',
+      'Create a staging view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage. Always write SQL using production schema names (staging.X) — when environment is set, schema references are auto-rewritten to target the correct environment schemas.',
     category: 'staging',
     inputSchema: {
       type: 'object',
@@ -764,7 +766,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_silver_view',
     description:
-      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema.',
+      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema. Always write SQL using production schema names (main.X, staging.X) — when environment is set, schema references are auto-rewritten to target the correct environment schemas.',
     category: 'silver',
     inputSchema: {
       type: 'object',
@@ -1530,7 +1532,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_promote_environment',
     description:
-      'Promote a development environment to production. Rewrites SQL schema references, executes views in production schemas (staging first, then main), copies relationships/primary_keys, regenerates quarri.schema, and refreshes caches.',
+      'Promote a development environment to production. Rewrites SQL schema references, executes views in production schemas (staging first, then main), copies relationships/primary_keys, regenerates quarri.schema, and refreshes caches. Automatically creates a production snapshot before promoting for rollback safety.',
     category: 'environments',
     inputSchema: {
       type: 'object',
@@ -1541,6 +1543,39 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['environment_name'],
+    },
+  },
+  {
+    name: 'quarri_rollback_production',
+    description:
+      'Rollback production to a previous snapshot. Restores transformation definitions, relationships, and primary keys from a snapshot. Re-executes all staging and silver views in production schemas and regenerates quarri schema. If no snapshot_id is provided, rolls back to the most recent snapshot.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        snapshot_id: {
+          type: 'integer',
+          description:
+            'ID of the snapshot to rollback to (optional — defaults to most recent)',
+        },
+      },
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_list_production_snapshots',
+    description:
+      'List available production snapshots for rollback. Shows timestamp, trigger (manual/pre_promote), and definition counts.',
+    category: 'environments',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        limit: {
+          type: 'integer',
+          description: 'Max number of snapshots to return (default 20)',
+        },
+      },
+      required: [],
     },
   },
 ];
