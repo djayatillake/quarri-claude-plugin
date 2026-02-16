@@ -55,6 +55,38 @@ Before making any configuration changes, ALWAYS show the user what will be chang
 - Show the SQL query that powers it
 - Ask: "Should I add/update this chart?"
 
+## Reconciliation, Comparison, and Verification Tasks
+
+When users ask you to reconcile, compare, or verify external data (CSV, PDF, spreadsheet) against data in Quarri, **NEVER upload the external data into Quarri**. The following tools create **permanent** changes to the data model and must not be used for temporary or ad-hoc tasks:
+
+- `quarri_upload_csv` — creates a permanent `raw.{table_name}` table that cannot be easily removed
+- `quarri_execute_staging_view` / `quarri_execute_silver_view` — creates permanent pipeline views
+- `quarri_generate_quarri_schema` — permanently modifies `quarri.schema` and `quarri.bridge` views
+
+### Correct Workflow
+
+1. **Extract external data locally** — use Python (`pandas`, `csv`, `tabula`) to read the CSV/PDF into a local DataFrame
+2. **Query Quarri data** — use `quarri_execute_sql` or `quarri_query_model_data` to extract the relevant data from Quarri (returns JSON you can load into a DataFrame)
+3. **Merge and compare locally** — use Python to join, diff, or reconcile the two datasets
+4. **Present results** — show the user mismatches, summaries, or a reconciliation report
+
+### Example: Reconcile CSV invoices against Quarri orders
+
+```
+# 1. Read the CSV locally
+import pandas as pd
+csv_df = pd.read_csv("/path/to/invoices.csv")
+
+# 2. Query Quarri for matching orders (via quarri_execute_sql)
+#    SELECT order_id, total, status FROM silver.orders WHERE date >= '2025-01-01'
+quarri_data = ...  # JSON result from quarri_execute_sql
+quarri_df = pd.DataFrame(quarri_data)
+
+# 3. Compare locally
+merged = csv_df.merge(quarri_df, left_on="invoice_id", right_on="order_id", how="outer")
+mismatches = merged[merged["csv_total"] != merged["quarri_total"]]
+```
+
 ## Read-Only Tools (No Confirmation Needed)
 
 These tools only read data and don't require explicit confirmation:

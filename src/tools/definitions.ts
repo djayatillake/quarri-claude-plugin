@@ -339,59 +339,82 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'quarri_create_rule',
-    description: 'Create a new rule for query generation',
+    description: 'Create a new rule for query generation. Use rule_type "general" for cross-query business logic, or "column" for column-specific semantics (requires table_name and column_name).',
     category: 'configuration',
     inputSchema: {
       type: 'object',
       properties: {
+        rule_type: {
+          type: 'string',
+          enum: ['column', 'general'],
+          description: 'Type of rule: "column" (for specific column semantics) or "general" (for cross-query business logic)',
+        },
         rule_text: {
           type: 'string',
           description: 'The rule text',
         },
-        category: {
+        table_name: {
           type: 'string',
-          description: 'Rule category (e.g., "naming", "joins", "filters")',
+          description: 'Table name (required for column rules)',
+        },
+        column_name: {
+          type: 'string',
+          description: 'Column name (required for column rules)',
         },
       },
-      required: ['rule_text'],
+      required: ['rule_type', 'rule_text'],
     },
   },
   {
     name: 'quarri_update_rule',
-    description: 'Update an existing rule',
+    description: 'Update an existing rule. Identify the rule by rule_type + table_name + column_name.',
     category: 'configuration',
     inputSchema: {
       type: 'object',
       properties: {
-        rule_id: {
-          type: 'integer',
-          description: 'ID of the rule to update',
+        rule_type: {
+          type: 'string',
+          enum: ['column', 'general'],
+          description: 'Type of rule: "column" or "general"',
         },
         rule_text: {
           type: 'string',
           description: 'New rule text',
         },
-        category: {
+        table_name: {
           type: 'string',
-          description: 'New rule category',
+          description: 'Table name (use empty string for general rules)',
+        },
+        column_name: {
+          type: 'string',
+          description: 'Column name (use empty string for general rules)',
         },
       },
-      required: ['rule_id', 'rule_text'],
+      required: ['rule_type', 'rule_text'],
     },
   },
   {
     name: 'quarri_delete_rule',
-    description: 'Delete a rule',
+    description: 'Delete a rule. Identify the rule by rule_type + table_name + column_name.',
     category: 'configuration',
     inputSchema: {
       type: 'object',
       properties: {
-        rule_id: {
-          type: 'integer',
-          description: 'ID of the rule to delete',
+        rule_type: {
+          type: 'string',
+          enum: ['column', 'general'],
+          description: 'Type of rule: "column" or "general"',
+        },
+        table_name: {
+          type: 'string',
+          description: 'Table name (use empty string for general rules)',
+        },
+        column_name: {
+          type: 'string',
+          description: 'Column name (use empty string for general rules)',
         },
       },
-      required: ['rule_id'],
+      required: ['rule_type'],
     },
   },
   {
@@ -543,7 +566,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'quarri_upload_csv',
-    description: 'Upload a CSV file to the database',
+    description: 'Upload a CSV file to permanently create a raw.{table_name} table in the database. WARNING: This creates permanent tables — it is for adding new data sources to the data model, NOT for temporary tasks like reconciliation, comparison, or verification. For comparing external data against Quarri data, use quarri_execute_sql to extract data and process locally with Python.',
     category: 'extraction',
     inputSchema: {
       type: 'object',
@@ -562,7 +585,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'quarri_generate_quarri_schema',
-    description: 'Generate Quarri schema configuration from database tables',
+    description: 'Generate Quarri schema configuration from database tables. This permanently modifies the quarri.schema and quarri.bridge views. Only use when adding tables to the data model permanently. Do NOT use for temporary or ad-hoc data.',
     category: 'extraction',
     inputSchema: {
       type: 'object',
@@ -725,7 +748,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_staging_view',
     description:
-      'Create a staging view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage. Always write SQL using production schema names (staging.X, silver.X, main.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. staging.X → dev_staging.X).',
+      'Create a staging view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for staging views — saves transformation_definition to Postgres so the web app can track lineage. Always write SQL using production schema names (staging.X, silver.X, main.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. staging.X → dev_staging.X). Do NOT use for temporary or ad-hoc analysis — staging views are permanent data model changes.',
     category: 'staging',
     inputSchema: {
       type: 'object',
@@ -766,7 +789,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_execute_silver_view',
     description:
-      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema. Always write SQL using production schema names (silver.X, main.X, staging.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. silver.X → dev_silver.X, main.X → dev_main.X).',
+      'Create a silver/main view in MotherDuck AND register it in the metadata pipeline. REQUIRES a development environment — production is protected and can only be modified via promote_environment. Preferred over execute_ddl for silver views. After creating views, use detect_relationships + set_relationship before generate_quarri_schema. Always write SQL using production schema names (silver.X, main.X, staging.X) — schema references are auto-rewritten to target the correct environment schemas (e.g. silver.X → dev_silver.X, main.X → dev_main.X). Do NOT use for temporary or ad-hoc analysis — silver views are permanent data model changes.',
     category: 'silver',
     inputSchema: {
       type: 'object',
