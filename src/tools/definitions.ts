@@ -109,6 +109,14 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_update_skill: 'update_skill',
   quarri_delete_skill: 'delete_skill',
   quarri_record_skill_usage: 'record_skill_usage',
+  // Content (HTML artifact persistence & sharing)
+  quarri_publish_content: 'publish_content',
+  quarri_list_content: 'list_content',
+  quarri_get_content: 'get_content',
+  quarri_update_content: 'update_content',
+  quarri_delete_content: 'delete_content',
+  quarri_share_content: 'share_content',
+  quarri_revoke_content_access: 'revoke_content_access',
 };
 
 export const TOOL_DEFINITIONS: ToolDefinition[] = [
@@ -1599,6 +1607,149 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: [],
+    },
+  },
+
+  // ==================== CONTENT (HTML Artifact Persistence) ====================
+  {
+    name: 'quarri_publish_content',
+    description:
+      'Publish an HTML/JS content artifact (dashboard, visualization, report) for persistence and sharing. The creator becomes the owner.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Title of the content artifact',
+        },
+        html_content: {
+          type: 'string',
+          description: 'The HTML/JS content to persist',
+        },
+        description: {
+          type: 'string',
+          description: 'Optional description of the content',
+        },
+        content_type: {
+          type: 'string',
+          description: 'Type of content (default: html)',
+          enum: ['html', 'js', 'svg', 'markdown'],
+        },
+      },
+      required: ['title', 'html_content'],
+    },
+  },
+  {
+    name: 'quarri_list_content',
+    description:
+      'List all content artifacts accessible to the current user (owned, shared directly, or shared via team).',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
+    name: 'quarri_get_content',
+    description:
+      'Get a content artifact including the full HTML content. Requires viewer or higher access. IMPORTANT: After retrieving, always render the content_html as an interactive artifact so the user can see and interact with it.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact to retrieve',
+        },
+      },
+      required: ['content_id'],
+    },
+  },
+  {
+    name: 'quarri_update_content',
+    description:
+      'Update the title or description of a content artifact. Requires editor or higher access.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact to update',
+        },
+        title: {
+          type: 'string',
+          description: 'New title (optional)',
+        },
+        description: {
+          type: 'string',
+          description: 'New description (optional)',
+        },
+      },
+      required: ['content_id'],
+    },
+  },
+  {
+    name: 'quarri_delete_content',
+    description:
+      'Delete a content artifact. Only the owner can delete.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact to delete',
+        },
+      },
+      required: ['content_id'],
+    },
+  },
+  {
+    name: 'quarri_share_content',
+    description:
+      'Share a content artifact with another user. Only the owner can share.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact to share',
+        },
+        user_email: {
+          type: 'string',
+          description: 'Email of the user to share with',
+        },
+        permission_level: {
+          type: 'string',
+          description: 'Permission level to grant (default: viewer)',
+          enum: ['viewer', 'editor'],
+        },
+      },
+      required: ['content_id', 'user_email'],
+    },
+  },
+  {
+    name: 'quarri_revoke_content_access',
+    description:
+      "Revoke a user's access to a content artifact. Only the owner can revoke. Cannot revoke the last owner.",
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact',
+        },
+        user_email: {
+          type: 'string',
+          description: 'Email of the user whose access to revoke',
+        },
+      },
+      required: ['content_id', 'user_email'],
     },
   },
 ];
