@@ -1462,7 +1462,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_search_skills',
     description:
-      'Search for relevant skills by text query and/or tags. Use when starting a complex task to check if a saved procedure exists.',
+      'Search for relevant skills by text query and/or tags. Use when starting a complex task to check if a saved procedure exists. Results may include shared skills (shared=true, shared_id) — use skill_name to look these up, not the shared_id.',
     category: 'skills',
     inputSchema: {
       type: 'object',
@@ -1487,7 +1487,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'quarri_list_skills',
-    description: 'List all saved skills for this database, optionally filtered by category.',
+    description: 'List all saved skills for this database, optionally filtered by category. Results include both local skills (have id field) and shared skills (have shared_id field and shared=true). Use skill_name to look up shared skills, not their shared_id.',
     category: 'skills',
     inputSchema: {
       type: 'object',
@@ -1504,18 +1504,18 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_get_skill',
     description:
-      'Get full skill details including step-by-step procedure. Use after search/list to retrieve the complete skill. Optionally fetch a specific historical version.',
+      'Get full skill details including step-by-step procedure. Use after search/list to retrieve the complete skill. Optionally fetch a specific historical version. IMPORTANT: Shared skills (shared=true) use shared_id not id — always use skill_name to look up shared skills.',
     category: 'skills',
     inputSchema: {
       type: 'object',
       properties: {
         skill_id: {
           type: 'integer',
-          description: 'ID of the skill',
+          description: 'ID of the skill (local skills only — for shared skills, use skill_name instead)',
         },
         skill_name: {
           type: 'string',
-          description: 'Name of the skill (alternative to skill_id)',
+          description: 'Name of the skill (works for both local and shared skills — preferred for shared skills)',
         },
         version: {
           type: 'integer',
@@ -1528,7 +1528,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_update_skill',
     description:
-      "Update a skill's content or metadata. Use to refine steps, fix errors, or update tags.",
+      "Update a skill's content or metadata. Use to refine steps, fix errors, or update tags. IMPORTANT: Only local skills (not shared) can be updated. Re-fetch the skill by name before updating to ensure the skill_id is current.",
     category: 'skills',
     inputSchema: {
       type: 'object',
