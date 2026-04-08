@@ -88,7 +88,10 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_query_repl_activity: 'query_repl_activity',
   quarri_read_fly_logs: 'read_fly_logs',
   // Connector management (new for skills-first architecture)
+  quarri_create_connector: 'create_connector',
+  quarri_list_connectors: 'list_connectors',
   quarri_log_analysis_run: 'log_analysis_run',
+  quarri_run_connector: 'run_connector',
   quarri_schedule_extraction: 'schedule_extraction',
   quarri_store_generated_code: 'store_generated_code',
   quarri_get_connector_code: 'get_connector_code',
@@ -515,26 +518,31 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
   {
     name: 'quarri_configure_extraction',
-    description: 'Configure a data extraction source',
-    category: 'extraction',
+    description: 'Add or update resource selections (tables/views) for an existing connector. Use this to tell a connector which source tables to extract.',
+    category: 'connector',
     inputSchema: {
       type: 'object',
       properties: {
+        connector_id: {
+          type: 'string',
+          description: 'ID of the connector (extraction_id from create_connector or list_connectors)',
+        },
         source_name: {
           type: 'string',
-          description: 'Name of the data source',
-        },
-        credentials: {
-          type: 'object',
-          description: 'Credentials for the source',
+          description: 'Name of the data source (alternative to connector_id — looks up the connector by source name)',
         },
         resources: {
           type: 'array',
           items: { type: 'string' },
           description: 'Resources/tables to extract',
         },
+        write_disposition: {
+          type: 'string',
+          enum: ['append', 'replace', 'merge'],
+          description: 'Write disposition for the resources (default: replace)',
+        },
       },
-      required: ['source_name'],
+      required: ['resources'],
     },
   },
   {
@@ -1182,6 +1190,52 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   // ==================== CONNECTOR MANAGEMENT TOOLS ====================
   // These support the skills-first architecture for /quarri-debug-connector and /quarri-extract
   {
+    name: 'quarri_create_connector',
+    description: 'Create a data connector: store credentials, save pipeline code, and optionally set a schedule. Returns the extraction_id for use with other connector tools.',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        source_name: {
+          type: 'string',
+          description: 'Name of the data source (e.g., "xero", "stripe", "lightspeed")',
+        },
+        target_schema: {
+          type: 'string',
+          description: 'Target schema in MotherDuck for loaded data (e.g., "raw_xero")',
+        },
+        credentials: {
+          type: 'object',
+          description: 'API credentials (e.g., {"client_id": "...", "client_secret": "..."}) — stored encrypted',
+        },
+        credential_type: {
+          type: 'string',
+          enum: ['api_key', 'oauth', 'connection_string'],
+          description: 'Type of credentials (default: api_key)',
+        },
+        pipeline_code: {
+          type: 'string',
+          description: 'The dlt Python pipeline code with a run_pipeline() function',
+        },
+        schedule: {
+          type: 'string',
+          description: 'Optional cron expression for scheduling (e.g., "0 2 * * *" for daily at 2am). If omitted, connector is saved as draft.',
+        },
+      },
+      required: ['source_name', 'target_schema', 'credentials', 'pipeline_code'],
+    },
+  },
+  {
+    name: 'quarri_list_connectors',
+    description: 'List all configured data connectors for the current database, including their status, schedule, and last run info.',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {},
+      required: [],
+    },
+  },
+  {
     name: 'quarri_log_analysis_run',
     description: 'Store a completed analysis run for history and auditing',
     category: 'connector',
@@ -1214,31 +1268,41 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
   {
-    name: 'quarri_schedule_extraction',
-    description: 'Schedule a Python extraction job to run on Quarri infrastructure',
+    name: 'quarri_run_connector',
+    description: 'Manually trigger a connector run immediately. Returns the run result including success/failure, rows loaded, and any errors.',
     category: 'connector',
     inputSchema: {
       type: 'object',
       properties: {
-        source_name: {
+        connector_id: {
           type: 'string',
-          description: 'Name of the data source (e.g., "stripe", "hubspot")',
+          description: 'ID of the connector (extraction_id from create_connector or list_connectors)',
         },
-        pipeline_code: {
+      },
+      required: ['connector_id'],
+    },
+  },
+  {
+    name: 'quarri_schedule_extraction',
+    description: 'Set or update the schedule for an existing connector. Use connector_id from create_connector.',
+    category: 'connector',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        connector_id: {
           type: 'string',
-          description: 'The validated dlt pipeline Python code',
+          description: 'ID of the connector (extraction_id from create_connector)',
         },
         schedule: {
           type: 'string',
           description: 'Cron expression for scheduling (e.g., "0 2 * * *" for daily at 2 AM)',
         },
-        resources: {
-          type: 'array',
-          items: { type: 'string' },
-          description: 'List of resources/tables to extract',
+        enabled: {
+          type: 'boolean',
+          description: 'Whether the schedule is enabled (default: true)',
         },
       },
-      required: ['source_name', 'pipeline_code', 'schedule'],
+      required: ['connector_id', 'schedule'],
     },
   },
   {
