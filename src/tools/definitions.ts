@@ -111,6 +111,8 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_get_skill: 'get_skill',
   quarri_update_skill: 'update_skill',
   quarri_delete_skill: 'delete_skill',
+  quarri_list_skill_versions: 'list_skill_versions',
+  quarri_restore_skill_version: 'restore_skill_version',
   quarri_record_skill_usage: 'record_skill_usage',
   // Content (HTML artifact persistence & sharing)
   quarri_publish_content: 'publish_content',
@@ -118,6 +120,8 @@ export const TOOL_NAME_MAP: Record<string, string> = {
   quarri_get_content: 'get_content',
   quarri_update_content: 'update_content',
   quarri_delete_content: 'delete_content',
+  quarri_list_content_versions: 'list_content_versions',
+  quarri_restore_content_version: 'restore_content_version',
   quarri_share_content: 'share_content',
   quarri_revoke_content_access: 'revoke_content_access',
 };
@@ -1500,7 +1504,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_get_skill',
     description:
-      'Get full skill details including step-by-step procedure. Use after search/list to retrieve the complete skill.',
+      'Get full skill details including step-by-step procedure. Use after search/list to retrieve the complete skill. Optionally fetch a specific historical version.',
     category: 'skills',
     inputSchema: {
       type: 'object',
@@ -1512,6 +1516,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         skill_name: {
           type: 'string',
           description: 'Name of the skill (alternative to skill_id)',
+        },
+        version: {
+          type: 'integer',
+          description: 'Specific version to retrieve (omit for current). Use list_skill_versions to see available versions.',
         },
       },
       required: [],
@@ -1541,7 +1549,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_delete_skill',
     description:
-      'Deactivate a skill (soft delete). The skill will no longer appear in search or list results.',
+      'Deactivate a skill (soft delete). The skill will no longer appear in search or list results. The current version is preserved in history and can be restored with restore_skill_version.',
     category: 'skills',
     inputSchema: {
       type: 'object',
@@ -1552,6 +1560,42 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['skill_id'],
+    },
+  },
+  {
+    name: 'quarri_list_skill_versions',
+    description:
+      'List version history for a skill. Shows when the skill was changed and what type of change (update, pre_delete, pre_restore). Use get_skill with a version parameter to retrieve a specific historical version.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill',
+        },
+      },
+      required: ['skill_id'],
+    },
+  },
+  {
+    name: 'quarri_restore_skill_version',
+    description:
+      'Restore a skill to a specific prior version. Creates a new version with the old content — no data is lost. Also reactivates soft-deleted skills.',
+    category: 'skills',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        skill_id: {
+          type: 'integer',
+          description: 'ID of the skill',
+        },
+        version: {
+          type: 'integer',
+          description: 'Version number to restore to (use list_skill_versions to see available versions)',
+        },
+      },
+      required: ['skill_id', 'version'],
     },
   },
   {
@@ -1707,18 +1751,23 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_list_content',
     description:
-      'List all content artifacts accessible to the current user (owned, shared directly, or shared via team).',
+      'List all content artifacts accessible to the current user (owned, shared directly, or shared via team). Soft-deleted items are hidden by default.',
     category: 'content',
     inputSchema: {
       type: 'object',
-      properties: {},
+      properties: {
+        include_deleted: {
+          type: 'boolean',
+          description: 'Include soft-deleted content items (default: false)',
+        },
+      },
       required: [],
     },
   },
   {
     name: 'quarri_get_content',
     description:
-      'Get a content artifact including the full HTML content. Requires viewer or higher access. IMPORTANT: After retrieving, always render the content_html as an interactive artifact so the user can see and interact with it.',
+      'Get a content artifact including the full HTML content. Requires viewer or higher access. IMPORTANT: After retrieving, always render the content_html as an interactive artifact so the user can see and interact with it. Optionally fetch a specific historical version.',
     category: 'content',
     inputSchema: {
       type: 'object',
@@ -1727,6 +1776,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'integer',
           description: 'ID of the content artifact to retrieve',
         },
+        version: {
+          type: 'integer',
+          description: 'Specific version to retrieve (omit for current). Use list_content_versions to see available versions.',
+        },
+        include_deleted: {
+          type: 'boolean',
+          description: 'Include soft-deleted content (default: false)',
+        },
       },
       required: ['content_id'],
     },
@@ -1734,7 +1791,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_update_content',
     description:
-      'Update the title or description of a content artifact. Requires editor or higher access.',
+      'Update a content artifact. Can update title, description, and/or republish with new HTML content. Previous version is saved to history. Requires editor or higher access.',
     category: 'content',
     inputSchema: {
       type: 'object',
@@ -1751,6 +1808,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
           type: 'string',
           description: 'New description (optional)',
         },
+        html_content: {
+          type: 'string',
+          description: 'New HTML/JS content to republish (optional). Previous content is preserved in version history.',
+        },
       },
       required: ['content_id'],
     },
@@ -1758,7 +1819,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'quarri_delete_content',
     description:
-      'Delete a content artifact. Only the owner can delete.',
+      'Soft-delete a content artifact. The content is hidden from listings but preserved in version history and can be restored with restore_content_version. Only the owner can delete.',
     category: 'content',
     inputSchema: {
       type: 'object',
@@ -1769,6 +1830,42 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         },
       },
       required: ['content_id'],
+    },
+  },
+  {
+    name: 'quarri_list_content_versions',
+    description:
+      'List version history for a content artifact. Shows when changes were made and what type of change (update, republish, pre_delete, pre_restore). Use get_content with a version parameter to retrieve the full content of a specific version.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact',
+        },
+      },
+      required: ['content_id'],
+    },
+  },
+  {
+    name: 'quarri_restore_content_version',
+    description:
+      'Restore a content artifact to a specific prior version. Creates a new version with the old content — no data is lost. Also undeletes soft-deleted content. Owner only.',
+    category: 'content',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        content_id: {
+          type: 'integer',
+          description: 'ID of the content artifact',
+        },
+        version: {
+          type: 'integer',
+          description: 'Version number to restore to (use list_content_versions to see available versions)',
+        },
+      },
+      required: ['content_id', 'version'],
     },
   },
   {
