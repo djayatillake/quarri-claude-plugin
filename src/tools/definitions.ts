@@ -1070,9 +1070,29 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {
+        query_type: {
+          type: 'string',
+          enum: ['sessions', 'messages', 'tool_calls', 'errors'],
+          description: 'Type of activity to query',
+          default: 'tool_calls',
+        },
         session_id: {
           type: 'string',
           description: 'Filter by session ID',
+        },
+        tool_name: {
+          type: 'string',
+          description: 'Filter by tool name (e.g. "get_skill", "execute_sql")',
+        },
+        all_users: {
+          type: 'boolean',
+          description: 'Show activity from all users (admin only)',
+          default: false,
+        },
+        success_only: {
+          type: 'boolean',
+          description: 'Only show successful tool calls',
+          default: false,
         },
         limit: {
           type: 'integer',
