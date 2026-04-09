@@ -1072,13 +1072,17 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       properties: {
         query_type: {
           type: 'string',
-          enum: ['sessions', 'messages', 'tool_calls', 'errors'],
-          description: 'Type of activity to query',
+          enum: ['sessions', 'messages', 'tool_calls', 'errors', 'conversations'],
+          description: 'Type of activity to query. "conversations" shows MCP conversation context records.',
           default: 'tool_calls',
         },
         session_id: {
           type: 'string',
           description: 'Filter by session ID',
+        },
+        conversation_id: {
+          type: 'string',
+          description: 'Filter by conversation ID',
         },
         tool_name: {
           type: 'string',
